@@ -1,11 +1,12 @@
-import { combineReducers, configureStore, createSlice } from '@reduxjs/toolkit'
+import { combineReducers, configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { deserialize, makeMockedStorage, wait } from './utils'
 import { persistReducer } from '../persistReducer'
 import { persistReducer as rpPersistReducer, persistStore as rpPersistStore } from 'redux-persist'
 import { buildKey } from '../buildKey'
 import { persistCombineReducers } from '../persistCombineReducers'
 
-type State = Record<string, string>
+type State = { a?: string; b?: string; c?: string }
+type SetAction = PayloadAction<{ key: 'a' | 'b' | 'c'; value: string }>
 
 const initialState: State = {}
 const delay = 10
@@ -13,7 +14,7 @@ const slice = createSlice({
   name: 'slice',
   initialState,
   reducers: {
-    set: (state, action) => {
+    set: (state, action: SetAction) => {
       state[action.payload.key] = action.payload.value
     },
   },
@@ -23,7 +24,7 @@ const other = createSlice({
   name: 'other',
   initialState,
   reducers: {
-    set: (state, action) => {
+    set: (state, action: SetAction) => {
       state[action.payload.key] = action.payload.value
     },
   },

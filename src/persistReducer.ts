@@ -1,14 +1,17 @@
-import type { Action, Reducer } from '@reduxjs/toolkit'
+import type { Action, Reducer, CombinedState } from '@reduxjs/toolkit'
 import { createCombinedProxy, createPersistableProxy, isPersisted } from './persistableProxy'
-import type { AnyState, Combined, PersistConfig } from './types'
+import type { AnyState, PersistConfig } from './types'
 import getStoredState from './getStoredState'
 import { createPersistoid } from './createPersistoid'
 import { ACTION_PREFIX, DEFAULT_VERSION } from './constants'
 import { autoMergeLevel1 } from './stateReconciler/autoMergeLevel1'
 import { register, rehydrate } from './actions'
 
-type StateFromReducer<R> = R extends Reducer<infer S, any, any> ? S : never
-type IsCombinedState<R> = R extends Reducer<infer S, any, infer PS> ? (PS extends S ? false : true) : never
+type Combined = {
+  combined: boolean
+}
+type StateFromReducer<R> = R extends Reducer<infer S> ? S : never
+type IsCombinedState<R> = StateFromReducer<R> extends CombinedState<unknown> ? true : false
 
 type Config<R extends Reducer> =
   // combineReducer invokes properties of state during initialization so we need to be sure

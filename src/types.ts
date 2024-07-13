@@ -3,8 +3,12 @@ import type { Action, Store } from '@reduxjs/toolkit'
 export interface Storage {
   getItem(key: string): string | null | undefined
   setItem(key: string, value: string): unknown
-  getAllKeys(): string[]
   removeItem(key: string): unknown
+}
+
+export type CompatibleStorage = Omit<Storage, 'getItem'> & {
+  getItem(key: string): Promise<string | null | undefined>
+  getItemSync(key: string): string | null | undefined
 }
 
 type Any = any
@@ -78,14 +82,6 @@ export type StateReconciler<State extends AnyState> = (
   config: PersistConfig<State>
 ) => State
 
-export type Combined =
-  | {
-      combined: true
-    }
-  | {
-      combined: false
-    }
-
 export type PersistConfig<
   State extends AnyState,
   RawState = Any,
@@ -94,7 +90,7 @@ export type PersistConfig<
 > = WhiteOrBacklist<State> & {
   key: string
   version?: number
-  storage: Storage
+  storage: Storage | CompatibleStorage
   deserialize?: (x: string) => unknown
   serialize?: (x: unknown) => string
   migrate?: PersistMigrate<State>

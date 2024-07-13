@@ -4,9 +4,13 @@ import { makeMockedStorage, serialize, wait } from './utils'
 import { persistReducer } from '../persistReducer'
 import { buildKey } from '../buildKey'
 
-type State = Record<string, string>
+type State = Record<string, string> & {
+  a: string
+}
 
-const level1InitialState: State = {}
+const level1InitialState: State = {
+  a: '0',
+}
 const delay = 10
 const slice = createSlice({
   name: 'slice',
@@ -18,7 +22,7 @@ const slice = createSlice({
   },
 })
 
-const otherInitialState: { inner: State } = {
+const otherInitialState: { inner: Record<string, string> } = {
   inner: {},
 }
 const other = createSlice({

@@ -1,11 +1,13 @@
-import type { AnyState, KeyAccessState, PersistConfig } from './types'
+import type { AnyState, CompatibleStorage, KeyAccessState, PersistConfig } from './types'
 import { buildKey } from './buildKey'
 import { DEFAULT_VERSION, PERSIST_KEY } from './constants'
+
+const isCompatibleStorage = (storage: any): storage is CompatibleStorage => typeof storage.getItemSync === 'function'
 
 export default function getStoredState<S extends AnyState>(config: PersistConfig<S>) {
   const { storage, transforms = [] } = config
   const storageKey = buildKey(config)
-  const serialized = storage.getItem(storageKey)
+  const serialized = isCompatibleStorage(storage) ? storage.getItemSync(storageKey) : storage.getItem(storageKey)
 
   if (!serialized) {
     return null
