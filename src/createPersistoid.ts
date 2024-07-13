@@ -1,0 +1,112 @@
+import type { Action, Store } from '@reduxjs/toolkit'
+import { buildKey } from './buildKey'
+import { DEFAULT_DELAY, DEFAULT_VERSION, PERSIST_KEY } from './constants'
+import type { AnyState, PersistConfig, Persistoid } from './types'
+
+export function createPersistoid<State extends AnyState>(config: PersistConfig<State>): Persistoid<State> {
+  let timerId: ReturnType<typeof setTimeout> | null = null
+  const { delay = DEFAULT_DELAY, storage, blacklist, whitelist, version = DEFAULT_VERSION, transforms = [] } = config
+  const storageKey = buildKey(config)
+  let lastState: State | null = null
+  let isPaused = false
+  let store: Store | null = null
+  const pendingActions: Action[] = []
+
+  function isBlocked(key: keyof State) {
+    if (whitelist && !whitelist.includes(key)) {
+      return true
+    }
+    if (blacklist?.includes(key)) {
+      return true
+    }
+    return false
+  }
+
+  const setItem = (state: State) => {
+    let serializedState: AnyState = {}
+    for (const stateKey of Object.keys(state)) {
+      const key = stateKey as keyof State
+      if (isBlocked(key)) {
+        continue
+      }
+
+      const endState = transforms.reduce((subState, transformer) => {
+        return transformer.in(subState, key, state)
+      }, state[key])
+
+      if (endState !== undefined) {
+        serializedState[stateKey] = serialize(config, endState)
+      } else {
+        //if the endState is undefined, no need to persist the existing serialized content
+        delete serializedState[stateKey]
+      }
+    }
+    serializedState[PERSIST_KEY] = serialize(config, { version, rehydrated: false })
+    const value = serialize(config, serializedState)
+    storage.setItem(storageKey, value)
+    lastState = null
+  }
+
+  const cancelPendingSetState = () => {
+    timerId && clearTimeout(timerId)
+    timerId = null
+  }
+
+  const asyncDispatch = ({ dispatch }: Store, action: Action) => {
+    setTimeout(() => {
+      dispatch(action)
+    }, 0)
+  }
+
+  return {
+    setStore(nextStore) {
+      store = nextStore
+      for (const action of pendingActions) {
+        asyncDispatch(store, action)
+      }
+      pendingActions.length = 0
+    },
+    dispatch(action) {
+      if (store) {
+        asyncDispatch(store, action)
+      } else {
+        pendingActions.push(action)
+      }
+    },
+    update(state) {
+      lastState = state
+      if (isPaused) {
+        return
+      }
+      cancelPendingSetState()
+      timerId = setTimeout(() => {
+        setItem(state)
+      }, delay)
+    },
+    flush() {
+      cancelPendingSetState()
+      lastState && setItem(lastState)
+    },
+    pause() {
+      cancelPendingSetState()
+      isPaused = true
+    },
+    purge() {
+      cancelPendingSetState()
+      storage.removeItem(storageKey)
+    },
+    persist() {
+      cancelPendingSetState()
+      isPaused = false
+      lastState && setItem(lastState)
+    },
+  }
+}
+
+function serialize<State extends object>(config: PersistConfig<State>, value: AnyState): string {
+  if (config.serialize) {
+    return config.serialize(value)
+  }
+
+  return JSON.stringify(value)
+}
