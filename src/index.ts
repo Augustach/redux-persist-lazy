@@ -14,3 +14,5 @@ export * from './constants'
 export const autoMergeCombinedState = autoMergeLevel2
 
 export { autoMergeLevel2 }
+
+export type { PersistedState, PersistState } from './types'
