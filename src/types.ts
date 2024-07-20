@@ -31,15 +31,15 @@ export interface MigrationManifest<State> {
   [key: string]: <S>(state: S) => State
 }
 
-export interface Persistor<State> {
-  update(state: State): void
+export interface Persistor {
   flush(): void
   pause(): void
   purge(): void
   persist(): void
 }
 
-export interface Persistoid<State> extends Persistor<State> {
+export interface Persistoid<State> extends Persistor {
+  update(state: State): void
   setStore(store: Store): void
   dispatch(action: Action): void
 }

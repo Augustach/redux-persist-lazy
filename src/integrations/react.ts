@@ -4,7 +4,7 @@ import type { Persistor } from '../types'
 export interface PersistGateProps {
   children: ReactNode | ((state: boolean) => ReactNode)
   loading: ReactNode
-  persistor: Persistor<any>
+  persistor: Persistor
 }
 
 export const PersistGate = ({ children }: PersistGateProps) => {

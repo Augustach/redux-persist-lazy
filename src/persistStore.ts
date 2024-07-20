@@ -6,8 +6,8 @@ type BoostrappedCb = () => void
 
 interface PersistorOptions {}
 
-export function persistStore(store: Store, _options?: PersistorOptions, callback?: BoostrappedCb): Persistor<unknown> {
-  const persistors: Persistor<unknown>[] = []
+export function persistStore(store: Store, _options?: PersistorOptions, callback?: BoostrappedCb): Persistor {
+  const persistors: Persistor[] = []
   callback?.()
 
   store.dispatch(
@@ -25,9 +25,6 @@ export function persistStore(store: Store, _options?: PersistorOptions, callback
         persistor.persist()
       }
       store.dispatch(persist())
-    },
-    update: (_state) => {
-      // noop
     },
     flush: () => {
       for (const persistor of persistors) {
