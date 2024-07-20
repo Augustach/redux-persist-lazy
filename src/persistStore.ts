@@ -6,7 +6,7 @@ type BoostrappedCb = () => void
 
 interface PersistorOptions {}
 
-export function persistStore(store: Store, _options?: PersistorOptions, callback?: BoostrappedCb): Persistor {
+export function persistStore(store: Store, _options?: PersistorOptions | null, callback?: BoostrappedCb): Persistor {
   const persistors: Persistor[] = []
   callback?.()
 

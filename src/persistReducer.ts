@@ -1,4 +1,4 @@
-import type { Action, Reducer, CombinedState } from '@reduxjs/toolkit'
+import type { Action, Reducer } from '@reduxjs/toolkit'
 import { createCombinedProxy, createPersistableProxy, isPersisted } from './persistableProxy'
 import type { AnyState, PersistConfig } from './types'
 import getStoredState from './getStoredState'
@@ -7,18 +7,13 @@ import { ACTION_PREFIX, DEFAULT_VERSION } from './constants'
 import { autoMergeLevel1 } from './stateReconciler/autoMergeLevel1'
 import { register, rehydrate } from './actions'
 
-type Combined = {
-  combined: boolean
-}
 type StateFromReducer<R> = R extends Reducer<infer S> ? S : never
-type IsCombinedState<R> = StateFromReducer<R> extends CombinedState<unknown> ? true : false
 
-type Config<R extends Reducer> =
-  // combineReducer invokes properties of state during initialization so we need to be sure
-  // that the users define the `combined` flag explicitly
-  IsCombinedState<R> extends true ? PersistConfig<StateFromReducer<R>> & Combined : PersistConfig<StateFromReducer<R>>
-
-export function persistReducer<R extends Reducer>(config: Config<R>, reducer: R): R
+export function persistReducer<R extends Reducer>(config: PersistConfig<StateFromReducer<R>>, reducer: R): R
+export function persistReducer<S extends AnyState, A extends Action = Action>(
+  config: PersistConfig<S>,
+  reducer: Reducer<S, A>
+): Reducer<S, A>
 
 export function persistReducer<S extends AnyState, A extends Action = Action>(
   config: PersistConfig<S>,

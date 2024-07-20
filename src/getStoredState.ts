@@ -1,4 +1,4 @@
-import type { AnyState, CompatibleStorage, KeyAccessState, PersistConfig } from './types'
+import type { AnyState, CompatibleStorage, KeyAccessState, PersistConfig, PersistedState } from './types'
 import { buildKey } from './buildKey'
 import { DEFAULT_VERSION, PERSIST_KEY } from './constants'
 
@@ -10,7 +10,7 @@ export default function getStoredState<S extends AnyState>(config: PersistConfig
   const serialized = isCompatibleStorage(storage) ? storage.getItemSync(storageKey) : storage.getItem(storageKey)
 
   if (!serialized) {
-    return null
+    return
   }
 
   const state: KeyAccessState = {}
@@ -31,7 +31,7 @@ export default function getStoredState<S extends AnyState>(config: PersistConfig
 
   state[PERSIST_KEY] = persisted
 
-  return state
+  return state as PersistedState
 }
 
 function deserialize<S extends AnyState>(config: PersistConfig<S>, value: string): any {
