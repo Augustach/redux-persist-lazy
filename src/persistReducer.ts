@@ -1,21 +1,21 @@
 import type { Action, Reducer } from '@reduxjs/toolkit'
-import { createCombinedProxy, createPersistableProxy, isPersisted } from './persistableProxy'
-import type { AnyState, Combined, PersistConfig } from './types'
+import { createCombinedProxy, createLazy } from './persistableProxy'
+import type { AnyState, PersistConfig } from './types'
 import getStoredState from './getStoredState'
 import { createPersistoid } from './createPersistoid'
 import { ACTION_PREFIX, DEFAULT_VERSION } from './constants'
 import { autoMergeLevel1 } from './stateReconciler/autoMergeLevel1'
 import { register, rehydrate } from './actions'
 
-type StateFromReducer<R> = R extends Reducer<infer S, any, any> ? S : never
-type IsCombinedState<R> = R extends Reducer<infer S, any, infer PS> ? (PS extends S ? false : true) : never
+type StateFromReducer<R> = R extends Reducer<infer S> ? S : never
 
-type Config<R extends Reducer> =
-  // combineReducer invokes properties of state during initialization so we need to be sure
-  // that the users define the `combined` flag explicitly
-  IsCombinedState<R> extends true ? PersistConfig<StateFromReducer<R>> & Combined : PersistConfig<StateFromReducer<R>>
+const NOT_INITIALIZED = Symbol('NOT_INITIALIZED')
 
-export function persistReducer<R extends Reducer>(config: Config<R>, reducer: R): R
+export function persistReducer<R extends Reducer>(config: PersistConfig<StateFromReducer<R>>, reducer: R): R
+export function persistReducer<S extends AnyState, A extends Action = Action>(
+  config: PersistConfig<S>,
+  reducer: Reducer<S, A>
+): Reducer<S, A>
 
 export function persistReducer<S extends AnyState, A extends Action = Action>(
   config: PersistConfig<S>,
@@ -24,10 +24,13 @@ export function persistReducer<S extends AnyState, A extends Action = Action>(
   const { stateReconciler = autoMergeLevel1 } = config
   const version = config.version ?? DEFAULT_VERSION
   const persistoid = createPersistoid(config)
-  let reconciledState: S | undefined
+  let reconciledState: S | typeof NOT_INITIALIZED = NOT_INITIALIZED
+  const getInitialState = {
+    type: `${ACTION_PREFIX}/__GET_EMPTY_STATE`, // It is supposed that this action will never be matched by any reducer
+  } as A
 
   const restoreItem = (state: S) => (): S => {
-    if (reconciledState !== undefined) {
+    if (reconciledState !== NOT_INITIALIZED) {
       return reconciledState
     }
     const restoredState = getStoredState(config)
@@ -35,46 +38,50 @@ export function persistReducer<S extends AnyState, A extends Action = Action>(
     reconciledState = stateReconciler<S>(migratedState, state, state, config)
     persistoid.dispatch(rehydrate(config.key, reconciledState)) // compatibility with redux-persist
 
-    return reconciledState
+    return reconciledState ?? state
   }
 
-  const getInitialState = {
-    type: `${ACTION_PREFIX}/__GET_EMPTY_STATE`, // It is supposed that this action will never be matched by any reducer
-  } as A
+  let proxy: S | typeof NOT_INITIALIZED = NOT_INITIALIZED
+  function getOrCreateProxy() {
+    if (proxy === NOT_INITIALIZED) {
+      const initialState = reducer(undefined, getInitialState)
+      // combineReducer invokes properties of state during initialization so we need to create a proxy for each property
+      const createProxy = config.combined ? createCombinedProxy : createLazy
+      proxy = createProxy<S>(restoreItem(initialState), config, initialState)
+    }
+
+    return proxy
+  }
+
+  function updateIfChanged(prev: S, next: S) {
+    if (prev === next) {
+      return
+    }
+    if (config.whitelist) {
+      for (const key of config.whitelist) {
+        if (prev[key] !== next[key]) {
+          persistoid.update(next)
+          return
+        }
+      }
+    } else {
+      persistoid.update(next)
+    }
+  }
 
   return (state, action) => {
     if (register.match(action)) {
       action.payload.register(persistoid)
     }
 
-    if (state !== undefined) {
-      reconciledState = undefined
-      const newState = reducer(state, action)
-
-      if (newState !== state) {
-        persistoid.update(newState)
-      }
-
-      return newState
+    if (state === undefined) {
+      state = getOrCreateProxy()
     }
 
-    const initialState = reducer(state, getInitialState)
+    const nextState = reducer(state, action)
 
-    // combineReducer invokes properties of state during initialization so we need to create a proxy for each property
-    const createProxy = config.combined ? createCombinedProxy : createPersistableProxy
-    const proxyState = createProxy<S>(initialState, restoreItem(initialState))
-    const newState = reducer(proxyState, action)
+    updateIfChanged(state, nextState)
 
-    // combineReducer transforms the state to a plain object
-    // so our passed proxy object transforms to a plain object with proxy properties
-    if (config.combined && Object.values(newState).every(isPersisted)) {
-      return newState
-    }
-
-    if (newState !== proxyState) {
-      persistoid.update(newState)
-    }
-
-    return newState
+    return nextState
   }
 }

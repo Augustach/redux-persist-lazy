@@ -1,119 +1,130 @@
-import type { AnyState } from './types'
+import type { AnyState, PersistConfig } from './types'
 
-const PERSISTED = Symbol('persisted')
-const COMBINED = Symbol('combined')
 const TO_JSON = 'toJSON'
+const proxies = new WeakSet()
 
-export function createPersistableProxy<T extends object>(initialState: any, getItem: () => T | null): T {
-  const getPersisted = (): T => {
-    let persisted = getItem()
-    if (persisted == null) {
-      persisted = initialState
-      return initialState
-    }
-
-    return persisted
+const notSupported = (method: string) => () => {
+  if (process.env.NODE_ENV === 'development') {
+    throw new Error(`${method} is not supported`)
   }
-  const self = {} as any
-  const proxy = new Proxy<T>(self, {
-    get: function (_, prop, receiver) {
-      if (prop === TO_JSON) {
-        return getPersisted
-      }
-      if (prop === PERSISTED) {
-        return self[PERSISTED]
-      }
-      const target = getPersisted()
-      return Reflect.get(target, prop, receiver)
-    },
-    getOwnPropertyDescriptor: function (_, prop) {
-      const target = getPersisted()
-      const descriptor = Object.getOwnPropertyDescriptor(target, prop)
-
-      return {
-        ...descriptor,
-        // rkt-query freezes the initial value so we need to make it configurable
-        // to avoid TypeError: 'getOwnPropertyDescriptor' on proxy: trap reported non-configurability for property '...' which is either non-existent or configurable in the proxy target
-        configurable: true,
-      }
-    },
-    has: function (_, prop) {
-      return prop in getPersisted()
-    },
-    set: function (_, prop, value, receiver) {
-      const target = getPersisted()
-      return Reflect.set(target, prop, value, receiver)
-    },
-  })
-
-  self[PERSISTED] = true
-
-  return proxy
+  return false
 }
 
-export function createCombinedProxy<T extends object>(initialState: any, getItem: () => T | null) {
-  const getPersisted = (): AnyState => {
-    let persisted = getItem()
-    if (persisted == null) {
-      return initialState
-    }
-
-    return persisted
+const toPrimitive = (value: any) => (hint: string) => {
+  if (hint === 'number') {
+    return Number(value)
   }
-  const proxies: Record<string | symbol, ReturnType<typeof createPersistableProxy>> = {}
+  if (hint === 'string') {
+    return String(value)
+  }
+  return value
+}
+
+export function createLazy<T>(getValue: () => T): T {
   const self = {} as any
-  const proxy = new Proxy<T>(self, {
-    get: function (_, prop, receiver) {
+  const proxy = new Proxy<object>(self, {
+    get(_, prop, receiver) {
       if (prop === TO_JSON) {
-        return getPersisted
+        return getValue
       }
-      if (prop === COMBINED) {
-        return self[COMBINED]
+      const value = getValue()
+      if (value == null) {
+        return undefined
       }
-      if (prop === PERSISTED) {
-        return self[PERSISTED]
-      }
-      if (typeof prop === 'symbol') {
-        const target = getPersisted()
-        return Reflect.get(target, prop, receiver)
-      }
-      let propProxy = proxies[prop]
-      if (propProxy !== undefined) {
-        return propProxy
-      }
-      const initialProp = initialState[prop]
-      if (initialProp && typeof initialProp === 'object' && initialProp[PERSISTED]) {
-        proxies[prop] = initialProp
-      } else {
-        proxies[prop] = createPersistableProxy(initialProp, () => {
-          const target = getPersisted()
-          return target[prop]
-        })
+      if (typeof value !== 'object') {
+        if (prop === Symbol.toPrimitive) {
+          return toPrimitive(value)
+        }
+        return value
       }
 
-      propProxy = proxies[prop]
-
-      return propProxy
+      return Reflect.get(value, prop, receiver)
     },
-    getOwnPropertyDescriptor: function (_, prop) {
-      const target = getPersisted()
-      const descriptor = Object.getOwnPropertyDescriptor(target, prop)
+    getOwnPropertyDescriptor(_, prop) {
+      const persisted = getValue()
+      if (persisted == null) {
+        return undefined
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(persisted, prop)
+
+      if (descriptor) {
+        // rkt-query freezes the initial value so we need to make it configurable
+        // to avoid TypeError: 'getOwnPropertyDescriptor' on proxy: trap reported non-configurability for property '...' which is either non-existent or configurable in the proxy target
+        descriptor.configurable = true
+      }
 
       return descriptor
     },
-    has: function (_, prop) {
-      return prop in getPersisted()
+    has(_, prop) {
+      const value = getValue()
+      if (value == null || typeof value !== 'object') {
+        return false
+      }
+      return prop in value
     },
-    set: function (_, prop, value, receiver) {
-      const target = getPersisted()
-      return Reflect.set(target, prop, value, receiver)
+    ownKeys() {
+      const value = getValue()
+
+      if (value == null || typeof value !== 'object') {
+        return []
+      }
+
+      return Reflect.ownKeys(value)
     },
+    preventExtensions(target) {
+      const persisted = getValue()
+      if (persisted != null) {
+        for (const key of Reflect.ownKeys(persisted)) {
+          Reflect.set(target, key, undefined)
+        }
+      }
+      Object.preventExtensions(target)
+      return true
+    },
+    set: notSupported('set'),
+    defineProperty: notSupported('defineProperty'),
+    deleteProperty: notSupported('deleteProperty'),
   })
 
-  self[COMBINED] = true
-  self[PERSISTED] = true
+  proxies.add(proxy)
 
-  return proxy
+  return proxy as T
 }
 
-export const isPersisted = (obj: any) => obj[PERSISTED] === true
+export function createCombinedProxy<T extends object>(
+  getValue: () => T,
+  config: PersistConfig<T>,
+  initialState: AnyState
+): T {
+  const getPersisted = (): AnyState => getValue() ?? initialState
+  const combined = {} as AnyState
+  const keys = Object.keys(initialState)
+  const { whitelist } = config
+
+  for (const key of keys) {
+    const value = initialState[key]
+    if (isPersistable(value)) {
+      combined[key] = value
+    } else if (!whitelist) {
+      combined[key] = createLazy(() => {
+        const target = getPersisted()
+        return target?.[key] ?? value
+      })
+    } else {
+      if (whitelist.includes(key as keyof T)) {
+        combined[key] = createLazy(() => {
+          const target = getPersisted()
+          return target?.[key] ?? value
+        })
+      } else {
+        combined[key] = value
+      }
+    }
+  }
+
+  return combined as T
+}
+
+export const isPersistable = (value: any) => {
+  return proxies.has(value)
+}

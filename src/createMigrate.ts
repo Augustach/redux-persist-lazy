@@ -3,10 +3,10 @@ import type { MigrationManifest, PersistedState } from './types'
 
 // https://github.com/rt2zz/redux-persist/blob/master/src/createMigrate.ts
 export const createMigrate =
-  <State>(migrations: MigrationManifest<State>) =>
-  (state: (State & PersistedState) | null, currentVersion: number): State | null => {
+  (migrations: MigrationManifest, _config?: { debug: boolean }) =>
+  (state: PersistedState | null, currentVersion: number): PersistedState => {
     if (!state) {
-      return null
+      return
     }
 
     const inboundVersion =

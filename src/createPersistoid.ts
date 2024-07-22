@@ -12,33 +12,16 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
   let store: Store | null = null
   const pendingActions: Action[] = []
 
-  function isBlocked(key: keyof State) {
-    if (whitelist && !whitelist.includes(key)) {
-      return true
-    }
-    if (blacklist?.includes(key)) {
-      return true
-    }
-    return false
-  }
-
   const setItem = (state: State) => {
     let serializedState: AnyState = {}
-    for (const stateKey of Object.keys(state)) {
-      const key = stateKey as keyof State
-      if (isBlocked(key)) {
-        continue
-      }
-
+    const keys = whitelist || Object.keys(state).filter((key) => blacklist?.includes(key as keyof State) !== true)
+    for (const key of keys) {
       const endState = transforms.reduce((subState, transformer) => {
         return transformer.in(subState, key, state)
       }, state[key])
 
       if (endState !== undefined) {
-        serializedState[stateKey] = serialize(config, endState)
-      } else {
-        //if the endState is undefined, no need to persist the existing serialized content
-        delete serializedState[stateKey]
+        serializedState[key as string] = serialize(config, endState)
       }
     }
     serializedState[PERSIST_KEY] = serialize(config, { version, rehydrated: false })

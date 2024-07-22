@@ -1,10 +1,14 @@
-import type { Action, Store } from '@reduxjs/toolkit'
+import type { Action, CombinedState, Store } from '@reduxjs/toolkit'
 
 export interface Storage {
   getItem(key: string): string | null | undefined
   setItem(key: string, value: string): unknown
-  getAllKeys(): string[]
   removeItem(key: string): unknown
+}
+
+export type CompatibleStorage = Omit<Storage, 'getItem'> & {
+  getItem(key: string): Promise<string | null | undefined>
+  getItemSync(key: string): string | null | undefined
 }
 
 type Any = any
@@ -16,26 +20,26 @@ export interface PersistState {
 }
 
 export type PersistedState =
-  | {
+  | ({
       _persist: PersistState
-    }
+    } & AnyState)
   | undefined
 
-export type PersistMigrate<State> = (state: Any, currentVersion: number) => State
+export type PersistMigrate = (state: PersistedState, currentVersion: number) => PersistedState
 
-export interface MigrationManifest<State> {
-  [key: string]: <S>(state: S) => State
+export interface MigrationManifest {
+  [key: string]: (state: PersistedState) => PersistedState
 }
 
-export interface Persistor<State> {
-  update(state: State): void
+export interface Persistor {
   flush(): void
   pause(): void
   purge(): void
   persist(): void
 }
 
-export interface Persistoid<State> extends Persistor<State> {
+export interface Persistoid<State> extends Persistor {
+  update(state: State): void
   setStore(store: Store): void
   dispatch(action: Action): void
 }
@@ -78,13 +82,19 @@ export type StateReconciler<State extends AnyState> = (
   config: PersistConfig<State>
 ) => State
 
-export type Combined =
-  | {
-      combined: true
-    }
-  | {
-      combined: false
-    }
+type IsCombinedState<S> = S extends CombinedState<unknown> ? true : false
+
+type Combined<S extends AnyState> =
+  IsCombinedState<S> extends true
+    ? {
+        /**
+         * Should be set to `true` if you are using`combineReducer` otherwise state will be rehydrated during store initialization
+         *
+         * NOTE: `combineReducer` invokes properties of state during initialization so we need to create a proxy for each property
+         */
+        combined: boolean
+      }
+    : { combined?: boolean }
 
 export type PersistConfig<
   State extends AnyState,
@@ -94,10 +104,10 @@ export type PersistConfig<
 > = WhiteOrBacklist<State> & {
   key: string
   version?: number
-  storage: Storage
+  storage: Storage | CompatibleStorage
   deserialize?: (x: string) => unknown
   serialize?: (x: unknown) => string
-  migrate?: PersistMigrate<State>
+  migrate?: PersistMigrate
   stateReconciler?: StateReconciler<State>
   transforms?: Array<Transform<HydratedSubState, EndSubState, State, RawState>>
   /**
@@ -109,5 +119,4 @@ export type PersistConfig<
    *
    * NOTE: `combineReducer` invokes properties of state during initialization so we need to create a proxy for each property
    */
-  combined?: boolean
-}
+} & Combined<State>

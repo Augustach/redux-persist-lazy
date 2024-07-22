@@ -9,10 +9,11 @@ describe('getStoredState', () => {
     const config = {
       key: 'mock',
       storage,
+      combined: false,
     }
 
     const result = getStoredState(config)
-    expect(result).toBeNull()
+    expect(result).toBeUndefined()
   })
 
   it('should return state with _persist property if found', () => {
@@ -20,6 +21,7 @@ describe('getStoredState', () => {
     const config = {
       key: 'mock',
       storage,
+      combined: false,
     }
     storage.setItem(buildKey(config), serialize({ a: 1 }))
 
@@ -33,6 +35,7 @@ describe('getStoredState', () => {
       key: 'mock',
       storage,
       version: 3,
+      combined: false,
     }
     storage.setItem(buildKey(config), serialize({ a: 1, _persist: { version: 2 } }))
     const result = getStoredState(config)
@@ -46,6 +49,7 @@ describe('getStoredState', () => {
       version,
       key: 'mock',
       storage,
+      combined: false,
     }
     storage.setItem(buildKey(config), serialize({ a: 1, _persist: { version: version, rehydrated: false } }))
     const result = getStoredState(config)

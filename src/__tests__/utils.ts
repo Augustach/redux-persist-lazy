@@ -12,9 +12,6 @@ export const makeMockedStorage = (): Storage => {
     removeItem: jest.fn().mockImplementation((key: string) => {
       map.delete(key)
     }),
-    getAllKeys() {
-      return Array.from(map.keys())
-    },
   }
 }
 
