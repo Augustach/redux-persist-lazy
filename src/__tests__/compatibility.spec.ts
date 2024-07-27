@@ -4,6 +4,7 @@ import { persistReducer } from '../persistReducer'
 import { persistReducer as rpPersistReducer, persistStore as rpPersistStore } from 'redux-persist'
 import { buildKey } from '../buildKey'
 import { persistCombineReducers } from '../persistCombineReducers'
+import { withPerist } from '../getDefaultMiddleware'
 
 type State = { a?: string; b?: string; c?: string }
 type SetAction = PayloadAction<{ key: 'a' | 'b' | 'c'; value: string }>
@@ -47,7 +48,7 @@ const holder = createSlice({
 })
 
 describe('compatibility with redux-persist', () => {
-  it('should rehydrate state saved by redux-persist', async () => {
+  it('redux-persist -> redux-persist-lazy', async () => {
     const storage = makeMockedStorage()
     const asyncStorage = {
       getItem: (key: string) => Promise.resolve(storage.getItem(key)),
@@ -63,7 +64,6 @@ describe('compatibility with redux-persist', () => {
       key: 'root',
       storage,
       delay,
-      combined: true,
       whitelist: [holder.name, 'other'],
     } as const
 
@@ -115,6 +115,7 @@ describe('compatibility with redux-persist', () => {
         other: other.reducer,
         holder: holder.reducer,
       }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     expect(JSON.stringify(store.getState())).toBe(
@@ -124,5 +125,78 @@ describe('compatibility with redux-persist', () => {
         holder: holder.getInitialState(),
       })
     )
+  })
+
+  it('redux-persist-lazy -> redux-persist', async () => {
+    const storage = makeMockedStorage()
+    const asyncStorage = {
+      getItem: (key: string) => Promise.resolve(storage.getItem(key)),
+      setItem: (key: string, value: string) => Promise.resolve(storage.setItem(key, value)),
+      removeItem: (key: string) => Promise.resolve(storage.removeItem(key)),
+    }
+    const sliceConfig = {
+      key: 'slice',
+      storage,
+      delay,
+    } as const
+    const rootConfig = {
+      key: 'root',
+      storage,
+      delay,
+      whitelist: [holder.name, 'other'],
+    } as const
+
+    const store = configureStore({
+      reducer: persistCombineReducers(rootConfig, {
+        slice: persistReducer(sliceConfig, slice.reducer),
+        other: other.reducer,
+        holder: holder.reducer,
+      }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+    })
+
+    store.dispatch(slice.actions.set({ key: 'a', value: '1' }))
+    store.dispatch(slice.actions.set({ key: 'b', value: '2' }))
+    store.dispatch(other.actions.set({ key: 'c', value: '3' }))
+
+    const _persist = { rehydrated: true, version: -1 }
+
+    expect(JSON.stringify(store.getState())).toBe(
+      JSON.stringify({
+        slice: { a: '1', b: '2' },
+        other: { c: '3' },
+        holder: holder.getInitialState(),
+      })
+    )
+
+    await wait(10)
+
+    const rpStore = configureStore({
+      reducer: rpPersistReducer(
+        { ...rootConfig, storage: asyncStorage } as any,
+        combineReducers({
+          slice: rpPersistReducer({ ...sliceConfig, storage: asyncStorage }, slice.reducer),
+          other: other.reducer,
+          holder: holder.reducer,
+        })
+      ),
+      middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware({
+          serializableCheck: false,
+        }),
+    })
+
+    await new Promise((resolve) => {
+      rpPersistStore(rpStore, null, () => {
+        resolve(null)
+      })
+    })
+
+    expect(rpStore.getState()).toStrictEqual({
+      other: { c: '3' },
+      holder: holder.getInitialState(),
+      slice: { a: '1', b: '2', _persist },
+      _persist,
+    })
   })
 })

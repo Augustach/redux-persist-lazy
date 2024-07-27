@@ -3,6 +3,7 @@ import { combineReducers, configureStore, createSlice } from '@reduxjs/toolkit'
 import { makeMockedStorage, serialize, wait } from './utils'
 import { persistReducer } from '../persistReducer'
 import { buildKey } from '../buildKey'
+import { persistCombineReducers } from '../persistCombineReducers'
 
 type State = Record<string, string> & {
   a: string
@@ -125,14 +126,12 @@ describe('whiteBlackList', () => {
       key: 'root',
       storage,
       delay,
-      combined: true,
       whitelist: ['other'],
     } as const
-    const combinedReducer = combineReducers({
+    const persistedReducer = persistCombineReducers(rootConfig, {
       slice: persistReducer(sliceConfig, slice.reducer),
       other: other.reducer,
     })
-    const persistedReducer = persistReducer(rootConfig, combinedReducer)
     const store = configureStore({
       reducer: persistedReducer,
     })

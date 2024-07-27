@@ -1,8 +1,8 @@
-import { combineReducers, configureStore, createSlice, isImmutableDefault, type PayloadAction } from '@reduxjs/toolkit'
+import { combineReducers, configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { persistReducer } from '../persistReducer'
 import { makeMockedStorage, serialize, wait } from './utils'
 import { buildKey } from '../buildKey'
-import { isPersistable } from '../persistableProxy'
+import { withPerist } from '../getDefaultMiddleware'
 
 const cached = {
   holder: {
@@ -64,15 +64,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     const json = JSON.stringify(store.getState())
@@ -94,15 +86,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     store.dispatch(slice.actions.increment('a'))
@@ -143,15 +127,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     store.dispatch(other.actions.increment())
@@ -172,15 +148,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     type State = ReturnType<(typeof store)['getState']>
@@ -204,15 +172,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     store.getState()
@@ -233,15 +193,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     const state = store.getState()
@@ -268,15 +220,7 @@ describe('persistReducer', () => {
         slice: persistReducer(sliceConfig, slice.reducer),
         other: persistReducer(otherConfig, other.reducer),
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     await wait(delay)
@@ -316,18 +260,48 @@ describe('persistReducer', () => {
       reducer: {
         [slice.name]: persistReducer(config, innerSlice.reducer),
       },
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     const value = store.getState()[innerSlice.name]?.value
     expect(value).toBe(undefined)
+  })
+
+  it('should not be rehydrated unless a persisted properly requested', async () => {
+    const storage = makeMockedStorage()
+    const simple = createSlice({
+      name: 'simple',
+      initialState: {
+        a: 1,
+        b: 2,
+      },
+      reducers: {
+        increment: (state, action: PayloadAction<'a' | 'b'>) => {
+          state[action.payload] += 1
+        },
+      },
+    })
+    const delay = 10
+    const config = {
+      key: 'root',
+      storage,
+      delay,
+      whitelist: ['a'],
+    } as const
+    const reducer = persistReducer(config, simple.reducer)
+    const store = configureStore({
+      reducer: reducer,
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+    })
+
+    expect(store.getState().b === 2).toBe(true)
+    expect(storage.getItem).not.toHaveBeenCalled()
+    expect(storage.getItem(buildKey(config))).toBe(null)
+
+    store.dispatch(simple.actions.increment('b'))
+
+    expect(store.getState().b).toBe(3)
+    expect(store.getState().a).toBe(1)
+    expect(storage.getItem).toHaveBeenCalledTimes(2)
   })
 })

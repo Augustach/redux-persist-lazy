@@ -15,6 +15,6 @@ export const autoMergeCombinedState = autoMergeLevel2
 
 export { autoMergeLevel2 }
 
-export type { PersistedState, PersistState, PersistConfig, Persistor } from './types'
+export type { PersistedState, PersistState, PersistConfig, Persistor, CombinedPersistConfig } from './types'
 
-export { isPersistable } from './persistableProxy'
+export { isPersistable, valueOf, asLazy } from './createLazy'

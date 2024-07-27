@@ -2,6 +2,7 @@ import type { Action, Store } from '@reduxjs/toolkit'
 import { buildKey } from './buildKey'
 import { DEFAULT_DELAY, DEFAULT_VERSION, PERSIST_KEY } from './constants'
 import type { AnyState, PersistConfig, Persistoid } from './types'
+import { valueOf } from './createLazy'
 
 export function createPersistoid<State extends AnyState>(config: PersistConfig<State>): Persistoid<State> {
   let timerId: ReturnType<typeof setTimeout> | null = null
@@ -18,7 +19,7 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
     for (const key of keys) {
       const endState = transforms.reduce((subState, transformer) => {
         return transformer.in(subState, key, state)
-      }, state[key])
+      }, valueOf(state[key]))
 
       if (endState !== undefined) {
         serializedState[key as string] = serialize(config, endState)
@@ -41,6 +42,17 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
     }, 0)
   }
 
+  const update = (state: State) => {
+    lastState = state
+    if (isPaused) {
+      return
+    }
+    cancelPendingSetState()
+    timerId = setTimeout(() => {
+      setItem(state)
+    }, delay)
+  }
+
   return {
     setStore(nextStore) {
       store = nextStore
@@ -56,15 +68,23 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
         pendingActions.push(action)
       }
     },
-    update(state) {
-      lastState = state
-      if (isPaused) {
+    update: update,
+    updateIfChanged(prev: State, next: State) {
+      if (prev === next) {
         return
       }
-      cancelPendingSetState()
-      timerId = setTimeout(() => {
-        setItem(state)
-      }, delay)
+      const prevKeys = whitelist ?? Object.keys(prev)
+      const nextKeys = whitelist ?? Object.keys(next)
+      if (prevKeys.length !== nextKeys.length) {
+        update(next)
+        return
+      }
+      for (const key of nextKeys) {
+        if (prev[key] !== next[key]) {
+          update(next)
+          return
+        }
+      }
     },
     flush() {
       cancelPendingSetState()

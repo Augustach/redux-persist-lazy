@@ -1,6 +1,6 @@
-import { createLazy } from '../persistableProxy'
+import { createLazy, valueOf } from '../createLazy'
 
-describe('persistableProxy', () => {
+describe('createLazy', () => {
   it('should handle hasOwnProperty of null', () => {
     const proxy = createLazy(() => null)
 
@@ -18,9 +18,14 @@ describe('persistableProxy', () => {
   })
 
   it('should handle primitive values', () => {
-    expect(createLazy(() => 42) + 1).toBe(43)
+    expect(Number(createLazy(() => 42))).toBe(42)
+    expect(Boolean(createLazy(() => 42))).toBe(true)
+    expect(!!createLazy(() => 0).valueOf()).toBe(false)
+    expect(Boolean(createLazy(() => 0).valueOf())).toBe(false)
+    expect(Boolean(valueOf(createLazy(() => false)))).toBe(false)
+    expect(createLazy(() => 42).valueOf() + 1).toBe(43)
     expect(createLazy(() => 42) + '1').toBe('421')
-    expect(createLazy(() => '42') + 1).toBe('421')
+    expect(createLazy(() => '42').valueOf() + 1).toBe('421')
     expect(!createLazy(() => true)).toBe(false)
     // @ts-expect-error
     expect(createLazy(() => true) + 1).toBe(2)

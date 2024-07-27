@@ -9,3 +9,4 @@ export const PURGE = `${ACTION_PREFIX}/PURGE` as const
 export const REGISTER = `${ACTION_PREFIX}/REGISTER` as const
 export const PERSIST_KEY = '_persist'
 export const DEFAULT_DELAY = 100
+export const NOT_INITIALIZED = Symbol('NOT_INITIALIZED')

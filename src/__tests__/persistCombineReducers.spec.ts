@@ -1,7 +1,9 @@
-import { combineReducers, configureStore, createSlice, isImmutableDefault } from '@reduxjs/toolkit'
+import { configureStore, createSlice } from '@reduxjs/toolkit'
 import { makeMockedStorage, serialize, wait } from './utils'
-import { autoMergeLevel1, isPersistable, persistCombineReducers, persistReducer } from '../'
+import { asLazy, autoMergeLevel1, persistCombineReducers, persistReducer } from '../'
 import { buildKey } from '../buildKey'
+import { withPerist } from '../getDefaultMiddleware'
+import type { Lazy } from '../types'
 
 const a = createSlice({
   name: 'a',
@@ -32,6 +34,7 @@ describe('persistCombineReducers', () => {
     const storage = makeMockedStorage()
     const config = {
       key: 'combined',
+      lazy: true,
       storage,
     }
     const persistedReducer = persistCombineReducers(config, {
@@ -40,15 +43,7 @@ describe('persistCombineReducers', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     expect(storage.getItem).not.toHaveBeenCalled()
@@ -65,6 +60,7 @@ describe('persistCombineReducers', () => {
     const storage = makeMockedStorage()
     const rootConfig = {
       key: 'root',
+      lazy: true,
       storage,
     }
     const aConfig = {
@@ -77,15 +73,7 @@ describe('persistCombineReducers', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     expect(storage.getItem).not.toHaveBeenCalled()
@@ -105,6 +93,7 @@ describe('persistCombineReducers', () => {
     const storage = makeMockedStorage()
     const rootConfig = {
       key: 'root',
+      lazy: true,
       storage,
     }
     const persistedReducer = persistCombineReducers(rootConfig, {
@@ -136,15 +125,7 @@ describe('persistCombineReducers', () => {
 
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     expect(JSON.stringify(store.getState())).toBe(
@@ -170,6 +151,7 @@ describe('persistCombineReducers', () => {
     const rootConfig = {
       key: 'root',
       storage,
+      lazy: true,
       delay,
       whitelist: ['b'],
     } as const
@@ -179,15 +161,7 @@ describe('persistCombineReducers', () => {
         a: persistReducer(sliceConfig, a.reducer),
         b: b.reducer,
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     await wait(delay)
@@ -216,28 +190,19 @@ describe('persistCombineReducers', () => {
       initialState: null as State,
       reducers: {},
     })
-    const rootReducer = combineReducers({
-      [innerSlice.name]: innerSlice.reducer,
-    })
     const config = {
       key: 'root',
       storage,
       delay,
       stateReconciler: autoMergeLevel1,
-      combined: true,
+      lazy: true,
       whilelist: [innerSlice.name],
     } as const
     const store = configureStore({
-      reducer: persistReducer(config, rootReducer),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      reducer: persistCombineReducers(config, {
+        [innerSlice.name]: innerSlice.reducer,
+      }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     const value = store.getState()[innerSlice.name]?.value
@@ -256,6 +221,7 @@ describe('persistCombineReducers', () => {
       key: 'root',
       storage,
       delay,
+      lazy: true,
       whitelist: ['b'],
     } as const
 
@@ -273,15 +239,7 @@ describe('persistCombineReducers', () => {
         b: b.reducer,
         [primitive.name]: primitive.reducer,
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     const value = store.getState()[primitive.name]
@@ -304,6 +262,7 @@ describe('persistCombineReducers', () => {
       key: 'root',
       storage,
       delay,
+      lazy: true,
       whitelist: ['b'],
     } as const
 
@@ -321,15 +280,7 @@ describe('persistCombineReducers', () => {
         b: b.reducer,
         [primitive.name]: primitive.reducer,
       }),
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware({
-          immutableCheck: {
-            isImmutable: (value: any) => isPersistable(value) || isImmutableDefault(value),
-          },
-          serializableCheck: {
-            getEntries: (value: any) => (isPersistable(value) ? [] : Object.entries(value)),
-          },
-        }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
     store.dispatch(primitive.actions.increment())
@@ -340,5 +291,88 @@ describe('persistCombineReducers', () => {
     expect(storage.setItem).toHaveBeenCalledTimes(0)
     expect(storage.getItem(buildKey(rootConfig))).toBe(null)
     expect(storage.getItem(buildKey(sliceConfig))).toBe(null)
+  })
+
+  it('should return primitives as is', () => {
+    const storage = makeMockedStorage()
+    const config = {
+      key: 'combined',
+      lazy: true,
+      storage,
+    }
+    const numberReducer = (state: Lazy<number> = 0) => state
+    const stringReducer = (state: Lazy<string> = 'str') => state
+    const boolReducer = (state: Lazy<boolean> = true) => state
+    const objectReducer = (state: { a: number } = { a: 0 }) => state
+    const listReducer = (state: Lazy<number[]> = asLazy([1, 2, 3])) => state
+    const persistedReducer = persistCombineReducers(config, {
+      number: numberReducer,
+      string: stringReducer,
+      bool: boolReducer,
+      list: listReducer,
+      objectReducer: objectReducer,
+    })
+    const store = configureStore({
+      reducer: persistedReducer,
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+    })
+
+    const state = store.getState()
+
+    expect(state.number).toBe(0)
+    expect(typeof state.number).toBe('number')
+
+    expect(state.string).toBe('str')
+    expect(typeof state.string).toBe('string')
+
+    expect(state.bool).toBe(true)
+    expect(typeof state.bool).toBe('boolean')
+
+    expect(state.objectReducer).toEqual({ a: 0 })
+    expect(typeof state.objectReducer).toBe('object')
+
+    expect(state.list).toEqual([1, 2, 3])
+    expect(Array.isArray(state.list)).toBe(true)
+  })
+
+  it('should return correct state after dispatch', () => {
+    const storage = makeMockedStorage()
+    const config = {
+      key: 'combined',
+      lazy: true,
+      storage,
+    }
+    const numberReducer = (state: Lazy<number> = 0) => state
+    const stringReducer = (state: Lazy<string> = 'str') => state
+    const boolReducer = (state: Lazy<boolean> = true) => state
+    const objectSlice = createSlice({
+      name: 'object',
+      initialState: { a: 0 },
+      reducers: {
+        increment: (state) => {
+          state.a += 1
+        },
+      },
+    })
+    const persistedReducer = persistCombineReducers(config, {
+      number: numberReducer,
+      string: stringReducer,
+      bool: boolReducer,
+      [objectSlice.name]: objectSlice.reducer,
+    })
+    const store = configureStore({
+      reducer: persistedReducer,
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+    })
+
+    store.dispatch(objectSlice.actions.increment())
+
+    const state = store.getState()
+
+    expect(state.number).toBe(0)
+    expect(typeof state.number).toBe('number')
+
+    expect(state.string).toBe('str')
+    expect(typeof state.string).toBe('string')
   })
 })

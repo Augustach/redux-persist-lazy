@@ -1,4 +1,4 @@
-import type { Action, CombinedState, Store } from '@reduxjs/toolkit'
+import type { Action, ReducersMapObject, StateFromReducersMapObject, Store } from '@reduxjs/toolkit'
 
 export interface Storage {
   getItem(key: string): string | null | undefined
@@ -40,6 +40,7 @@ export interface Persistor {
 
 export interface Persistoid<State> extends Persistor {
   update(state: State): void
+  updateIfChanged(prev: State, next: State): void
   setStore(store: Store): void
   dispatch(action: Action): void
 }
@@ -82,19 +83,10 @@ export type StateReconciler<State extends AnyState> = (
   config: PersistConfig<State>
 ) => State
 
-type IsCombinedState<S> = S extends CombinedState<unknown> ? true : false
+export const GET_ORIGINAL = Symbol('GET_ORIGINAL')
+export type Lazy<T> = { valueOf(): T; [GET_ORIGINAL]?: () => T }
 
-type Combined<S extends AnyState> =
-  IsCombinedState<S> extends true
-    ? {
-        /**
-         * Should be set to `true` if you are using`combineReducer` otherwise state will be rehydrated during store initialization
-         *
-         * NOTE: `combineReducer` invokes properties of state during initialization so we need to create a proxy for each property
-         */
-        combined: boolean
-      }
-    : { combined?: boolean }
+export type ToObject<T> = T extends AnyState ? T : Lazy<T>
 
 export type PersistConfig<
   State extends AnyState,
@@ -114,9 +106,11 @@ export type PersistConfig<
    * Delay between persisting state
    */
   delay?: number
-  /**
-   * Should be set to `true` if you are using`combineReducer` otherwise state will be rehydrated during store initialization
-   *
-   * NOTE: `combineReducer` invokes properties of state during initialization so we need to create a proxy for each property
-   */
-} & Combined<State>
+}
+
+export type CombinedPersistConfig<S> =
+  S extends ReducersMapObject<any, any>
+    ? PersistConfig<StateFromReducersMapObject<S>>
+    : S extends object
+      ? PersistConfig<S>
+      : never
