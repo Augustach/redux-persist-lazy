@@ -1,9 +1,8 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit'
 import { makeMockedStorage, serialize, wait } from './utils'
-import { asLazy, autoMergeLevel1, persistCombineReducers, persistReducer } from '../'
+import { asLazy, autoMergeLevel1, persistCombineReducersLazy, persistReducer, valueOf } from '..'
 import { buildKey } from '../buildKey'
 import { withPerist } from '../getDefaultMiddleware'
-import type { Lazy } from '../types'
 
 const a = createSlice({
   name: 'a',
@@ -29,15 +28,14 @@ const b = createSlice({
   },
 })
 
-describe('persistCombineReducers', () => {
+describe('persistCombineReducersLazy', () => {
   it('should be lazy', () => {
     const storage = makeMockedStorage()
     const config = {
       key: 'combined',
-      lazy: true,
       storage,
     }
-    const persistedReducer = persistCombineReducers(config, {
+    const persistedReducer = persistCombineReducersLazy(config, {
       a: a.reducer,
       b: b.reducer,
     })
@@ -60,14 +58,13 @@ describe('persistCombineReducers', () => {
     const storage = makeMockedStorage()
     const rootConfig = {
       key: 'root',
-      lazy: true,
       storage,
     }
     const aConfig = {
       key: 'a',
       storage,
     }
-    const persistedReducer = persistCombineReducers(rootConfig, {
+    const persistedReducer = persistCombineReducersLazy(rootConfig, {
       a: persistReducer(aConfig, a.reducer),
       b: b.reducer,
     })
@@ -93,11 +90,10 @@ describe('persistCombineReducers', () => {
     const storage = makeMockedStorage()
     const rootConfig = {
       key: 'root',
-      lazy: true,
       storage,
     }
-    const persistedReducer = persistCombineReducers(rootConfig, {
-      level1: persistCombineReducers(
+    const persistedReducer = persistCombineReducersLazy(rootConfig, {
+      level1: persistCombineReducersLazy(
         {
           key: 'level1',
           storage,
@@ -151,13 +147,12 @@ describe('persistCombineReducers', () => {
     const rootConfig = {
       key: 'root',
       storage,
-      lazy: true,
       delay,
       whitelist: ['b'],
     } as const
 
     const store = configureStore({
-      reducer: persistCombineReducers({ ...rootConfig } as any, {
+      reducer: persistCombineReducersLazy({ ...rootConfig } as any, {
         a: persistReducer(sliceConfig, a.reducer),
         b: b.reducer,
       }),
@@ -195,11 +190,10 @@ describe('persistCombineReducers', () => {
       storage,
       delay,
       stateReconciler: autoMergeLevel1,
-      lazy: true,
       whilelist: [innerSlice.name],
     } as const
     const store = configureStore({
-      reducer: persistCombineReducers(config, {
+      reducer: persistCombineReducersLazy(config, {
         [innerSlice.name]: innerSlice.reducer,
       }),
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
@@ -221,20 +215,19 @@ describe('persistCombineReducers', () => {
       key: 'root',
       storage,
       delay,
-      lazy: true,
       whitelist: ['b'],
     } as const
 
     const primitive = createSlice({
       name: 'primitive',
-      initialState: 0,
+      initialState: asLazy(0),
       reducers: {
-        increment: (state) => state + 1,
+        increment: (state) => valueOf(state) + 1,
       },
     })
 
     const store = configureStore({
-      reducer: persistCombineReducers({ ...rootConfig } as any, {
+      reducer: persistCombineReducersLazy({ ...rootConfig } as any, {
         a: persistReducer(sliceConfig, a.reducer),
         b: b.reducer,
         [primitive.name]: primitive.reducer,
@@ -262,20 +255,19 @@ describe('persistCombineReducers', () => {
       key: 'root',
       storage,
       delay,
-      lazy: true,
       whitelist: ['b'],
     } as const
 
     const primitive = createSlice({
       name: 'primitive',
-      initialState: 0,
+      initialState: asLazy(0),
       reducers: {
-        increment: (state) => state + 1,
+        increment: (state) => valueOf(state) + 1,
       },
     })
 
     const store = configureStore({
-      reducer: persistCombineReducers({ ...rootConfig } as any, {
+      reducer: persistCombineReducersLazy({ ...rootConfig } as any, {
         a: persistReducer(sliceConfig, a.reducer),
         b: b.reducer,
         [primitive.name]: primitive.reducer,
@@ -297,15 +289,14 @@ describe('persistCombineReducers', () => {
     const storage = makeMockedStorage()
     const config = {
       key: 'combined',
-      lazy: true,
       storage,
     }
-    const numberReducer = (state: Lazy<number> = 0) => state
-    const stringReducer = (state: Lazy<string> = 'str') => state
-    const boolReducer = (state: Lazy<boolean> = true) => state
-    const objectReducer = (state: { a: number } = { a: 0 }) => state
-    const listReducer = (state: Lazy<number[]> = asLazy([1, 2, 3])) => state
-    const persistedReducer = persistCombineReducers(config, {
+    const numberReducer = (state = asLazy(0)) => state
+    const stringReducer = (state = asLazy('str')) => state
+    const boolReducer = (state = asLazy(true)) => state
+    const objectReducer = (state = { a: 0 }) => state
+    const listReducer = (state = asLazy([1, 2, 3])) => state
+    const persistedReducer = persistCombineReducersLazy(config, {
       number: numberReducer,
       string: stringReducer,
       bool: boolReducer,
@@ -339,12 +330,11 @@ describe('persistCombineReducers', () => {
     const storage = makeMockedStorage()
     const config = {
       key: 'combined',
-      lazy: true,
       storage,
     }
-    const numberReducer = (state: Lazy<number> = 0) => state
-    const stringReducer = (state: Lazy<string> = 'str') => state
-    const boolReducer = (state: Lazy<boolean> = true) => state
+    const numberReducer = (state = asLazy(0)) => state
+    const stringReducer = (state = asLazy('str')) => state
+    const boolReducer = (state = asLazy(true)) => state
     const objectSlice = createSlice({
       name: 'object',
       initialState: { a: 0 },
@@ -354,7 +344,7 @@ describe('persistCombineReducers', () => {
         },
       },
     })
-    const persistedReducer = persistCombineReducers(config, {
+    const persistedReducer = persistCombineReducersLazy(config, {
       number: numberReducer,
       string: stringReducer,
       bool: boolReducer,

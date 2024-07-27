@@ -1,4 +1,4 @@
-import type { AnyState, Lazy } from './types'
+import { GET_ORIGINAL, type AnyState, type Lazy } from './types'
 
 const TO_JSON = 'toJSON'
 const VALUE_OF = 'valueOf'
@@ -22,16 +22,6 @@ const toPrimitive = (value: any) => (hint: string) => {
   return value
 }
 
-export const valueOf = <T>(value: any): T => {
-  if (!value) {
-    return value
-  }
-  if (typeof value === OBJECT_TYPE || Array.isArray(value)) {
-    return value?.valueOf() as T
-  }
-  return value as T
-}
-
 export function createLazy<T extends AnyState>(getValue: (key?: string | symbol) => T | null | undefined): T
 export function createLazy<T>(getValue: (key?: string | symbol) => T | null | undefined): Lazy<T>
 
@@ -39,28 +29,30 @@ export function createLazy<T>(getValue: (key?: string | symbol) => T | null | un
   const self = {} as any
   const proxy = new Proxy<object>(self, {
     get(_, prop, receiver) {
-      if (prop === TO_JSON || prop === VALUE_OF) {
+      if (prop === TO_JSON || prop === VALUE_OF || prop === GET_ORIGINAL) {
         return () => getValue()
       }
-      const value = getValue(prop)
-      if (value == null) {
+      const target = getValue(prop)
+      if (target == null) {
         return undefined
       }
-      if (typeof value !== OBJECT_TYPE) {
+      if (typeof target !== OBJECT_TYPE) {
         if (prop === Symbol.toPrimitive) {
-          return toPrimitive(value)
+          return toPrimitive(target)
         }
-        return value
+        return target
       }
 
-      return valueOf(Reflect.get(value, prop, receiver))
+      const value = Reflect.get(target, prop, receiver)
+
+      return valueOf(value)
     },
     getOwnPropertyDescriptor(_, prop) {
-      const persisted = getValue(prop)
-      if (persisted == null) {
+      const target = getValue(prop)
+      if (target == null) {
         return undefined
       }
-      const descriptor = Object.getOwnPropertyDescriptor(persisted, prop)
+      const descriptor = Object.getOwnPropertyDescriptor(target, prop)
 
       if (descriptor) {
         // rkt-query freezes the initial value so we need to make it configurable
@@ -71,29 +63,32 @@ export function createLazy<T>(getValue: (key?: string | symbol) => T | null | un
       return descriptor
     },
     has(_, prop) {
-      const value = getValue(prop)
-      if (value == null || typeof value !== 'object') {
+      if (prop === GET_ORIGINAL) {
+        return true
+      }
+      const target = getValue(prop)
+      if (target == null || typeof target !== 'object') {
         return false
       }
-      return prop in value
+      return prop in target
     },
     ownKeys() {
-      const value = getValue()
+      const target = getValue()
 
-      if (value == null || typeof value !== 'object') {
+      if (target == null || typeof target !== 'object') {
         return []
       }
 
-      return Reflect.ownKeys(value)
+      return Reflect.ownKeys(target)
     },
-    preventExtensions(target) {
-      const value = getValue()
-      if (value != null) {
-        for (const key of Reflect.ownKeys(value)) {
-          Reflect.set(target, key, undefined)
+    preventExtensions(original) {
+      const target = getValue()
+      if (target != null) {
+        for (const key of Reflect.ownKeys(target)) {
+          Reflect.set(original, key, undefined)
         }
       }
-      Object.preventExtensions(target)
+      Object.preventExtensions(original)
       return true
     },
     set: notSupported('set'),
@@ -106,13 +101,15 @@ export function createLazy<T>(getValue: (key?: string | symbol) => T | null | un
   return proxy as Lazy<T>
 }
 
-export const asLazy = <T>(value: T): Lazy<T> => {
-  if (typeof value?.[VALUE_OF] === 'function') {
-    return value as Lazy<T>
+export const valueOf = <T>(value: Lazy<T> | T): T => {
+  if (typeof value === 'object' && value != null && GET_ORIGINAL in value) {
+    return value[GET_ORIGINAL]()
   }
-  return {
-    [VALUE_OF]: () => value,
-  }
+  return value as T
+}
+
+export const asLazy = <T>(value: T): Lazy<T> | T => {
+  return value
 }
 
 export const isPersistable = <T>(value: any): value is Lazy<T> => {

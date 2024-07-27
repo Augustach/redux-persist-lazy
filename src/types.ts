@@ -84,7 +84,7 @@ export type StateReconciler<State extends AnyState> = (
 ) => State
 
 export const GET_ORIGINAL = Symbol('GET_ORIGINAL')
-export type Lazy<T> = { valueOf(): T; [GET_ORIGINAL]?: () => T }
+export type Lazy<T> = { readonly [GET_ORIGINAL]: () => T }
 
 export type ToObject<T> = T extends AnyState ? T : Lazy<T>
 
