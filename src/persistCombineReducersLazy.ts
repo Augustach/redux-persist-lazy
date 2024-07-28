@@ -61,7 +61,7 @@ export function persistCombineReducersLazy<S extends AnyState>(
     }
 
     if (outerProxy === NOT_INITIALIZED) {
-      outerProxy = createOuterProxy(state)
+      outerProxy = createOuterProxy(state, config)
     }
 
     // @ts-expect-error
@@ -69,11 +69,11 @@ export function persistCombineReducersLazy<S extends AnyState>(
 
     if (state !== nextState) {
       if (isRestored()) {
-        innerProxy = toPlainObject(nextState)
+        innerProxy = toPlainObject(nextState, config)
         outerProxy = innerProxy
       } else {
         innerProxy = nextState
-        outerProxy = createOuterProxy(innerProxy)
+        outerProxy = createOuterProxy(innerProxy, config)
       }
       persistoid.updateIfChanged(state, innerProxy)
     }
@@ -82,11 +82,16 @@ export function persistCombineReducersLazy<S extends AnyState>(
   }
 }
 
-function toPlainObject<T extends AnyState>(innerProxy: T): T {
+function toPlainObject<T extends AnyState>(innerProxy: T, config: PersistConfig<T>): T {
   const plain = {} as T
+  const whitelist = config.whitelist ?? Object.keys(innerProxy)
 
   for (const key in innerProxy) {
-    plain[key] = valueOf(innerProxy[key])
+    if (whitelist.includes(key as keyof T)) {
+      plain[key] = valueOf(innerProxy[key])
+    } else {
+      plain[key] = innerProxy[key]
+    }
   }
 
   return plain
@@ -124,10 +129,14 @@ export function createInnerProxy<T extends object>(
   return combined as T
 }
 
-export function createOuterProxy<T extends AnyState>(innerProxy: T): T {
+export function createOuterProxy<T extends AnyState>(innerProxy: T, config: PersistConfig<T>): T {
+  const whitelist = config.whitelist ?? Object.keys(innerProxy)
   const proxy = new Proxy(innerProxy, {
     get(target, prop, receiver) {
-      return valueOf(Reflect.get(target, prop, receiver))
+      if (whitelist.includes(prop as keyof T)) {
+        return valueOf(Reflect.get(target, prop, receiver))
+      }
+      return Reflect.get(target, prop, receiver)
     },
   })
 

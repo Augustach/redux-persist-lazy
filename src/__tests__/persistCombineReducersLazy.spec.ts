@@ -401,11 +401,6 @@ describe('persistCombineReducersLazy', () => {
 
   it('should return plain object after dispatch', () => {
     const storage = makeMockedStorage()
-    const config = {
-      key: 'root',
-      storage,
-    }
-    storage.setItem(buildKey(config), serialize({ object: { a: 0 }, number: 10 }))
     const numberSlice = createSlice({
       name: 'number',
       initialState: asLazy<number>(0),
@@ -422,9 +417,30 @@ describe('persistCombineReducersLazy', () => {
         },
       },
     })
+    const config = {
+      key: 'root',
+      storage,
+      whitelist: [objectSlice.name, numberSlice.name],
+    } as const
+    storage.setItem(buildKey(config), serialize({ object: { a: 0 }, number: 10 }))
+    const persistedSliceConfig = {
+      key: 'persisted',
+      storage,
+    }
+    const peristedSlice = createSlice({
+      name: 'persisted',
+      initialState: { value: 0 },
+      reducers: {
+        increment: (state) => {
+          state.value += 1
+        },
+      },
+    })
+    storage.setItem(buildKey(persistedSliceConfig), serialize({ value: 11 }))
     const persistedReducer = persistCombineReducersLazy(config, {
       [numberSlice.name]: numberSlice.reducer,
       [objectSlice.name]: objectSlice.reducer,
+      [peristedSlice.name]: persistReducer(persistedSliceConfig, peristedSlice.reducer),
     })
     const store = configureStore({
       reducer: persistedReducer,
@@ -440,5 +456,58 @@ describe('persistCombineReducersLazy', () => {
     const state = store.getState()
 
     expect(state.object.a).toBe(1)
+
+    expect(isPersistable(state[peristedSlice.name])).toBe(true)
+    expect(state[peristedSlice.name].value).toBe(11)
+  })
+
+  it.only('should not restore persisted reducer if not in whitelist', () => {
+    const storage = makeMockedStorage()
+    const numberSlice = createSlice({
+      name: 'number',
+      initialState: asLazy<number>(0),
+      reducers: {
+        increment: (state) => valueOf(state) + 1,
+      },
+    })
+    const config = {
+      key: 'root',
+      storage,
+      whitelist: [numberSlice.name],
+    } as const
+    storage.setItem(buildKey(config), serialize({ number: 10 }))
+    const persistedSliceConfig = {
+      key: 'persisted',
+      storage,
+    }
+    const peristedSlice = createSlice({
+      name: 'persisted',
+      initialState: { value: 0 },
+      reducers: {
+        increment: (state) => {
+          state.value += 1
+        },
+      },
+    })
+    storage.setItem(buildKey(persistedSliceConfig), serialize({ value: 11 }))
+    const persistedReducer = persistCombineReducersLazy(config, {
+      [numberSlice.name]: numberSlice.reducer,
+      [peristedSlice.name]: persistReducer(persistedSliceConfig, peristedSlice.reducer),
+    })
+    const store = configureStore({
+      reducer: persistedReducer,
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+    })
+
+    let state = store.getState()
+    expect(state.number).toBe(10)
+    expect(isPersistable(state[peristedSlice.name])).toBe(true)
+
+    store.dispatch(peristedSlice.actions.increment())
+
+    state = store.getState()
+
+    expect(isPersistable(state[peristedSlice.name])).toBe(false)
+    expect(state[peristedSlice.name].value).toBe(12)
   })
 })
