@@ -11,6 +11,7 @@ export function createHelpers<S extends AnyState>(config: PersistConfig<S>) {
   const version = config.version ?? DEFAULT_VERSION
   const persistoid = createPersistoid(config)
   const whitelist = config.whitelist
+  let isRestored = false
   let reconciledState: S | typeof NOT_INITIALIZED = NOT_INITIALIZED
   const getInitialState = {
     type: `${ACTION_PREFIX}/__GET_EMPTY_STATE`, // It is supposed that this action will never be matched by any reducer
@@ -29,6 +30,7 @@ export function createHelpers<S extends AnyState>(config: PersistConfig<S>) {
       const migratedState = config.migrate ? config.migrate(restoredState, version) : restoredState
       reconciledState = stateReconciler<S>(migratedState, state, state, config)
       persistoid.dispatch(rehydrate(config.key, reconciledState)) // compatibility with redux-persist
+      isRestored = true
 
       return reconciledState ?? state
     }
@@ -37,5 +39,8 @@ export function createHelpers<S extends AnyState>(config: PersistConfig<S>) {
     persistoid,
     getInitialState,
     restoreItem,
+    isRestored() {
+      return isRestored
+    },
   }
 }

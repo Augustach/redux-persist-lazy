@@ -3,7 +3,7 @@ import { GET_ORIGINAL, type AnyState, type Lazy } from './types'
 const TO_JSON = 'toJSON'
 const VALUE_OF = 'valueOf'
 const OBJECT_TYPE = 'object'
-const proxies = new WeakSet()
+export const proxies = new WeakSet()
 
 const notSupported = (method: string) => () => {
   if (process.env.NODE_ENV === 'development') {
@@ -43,9 +43,7 @@ export function createLazy<T>(getValue: (key?: string | symbol) => T | null | un
         return target
       }
 
-      const value = Reflect.get(target, prop, receiver)
-
-      return valueOf(value)
+      return Reflect.get(target, prop, receiver)
     },
     getOwnPropertyDescriptor(_, prop) {
       const target = getValue(prop)

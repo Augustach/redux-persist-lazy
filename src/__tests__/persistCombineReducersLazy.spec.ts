@@ -1,6 +1,6 @@
-import { configureStore, createSlice } from '@reduxjs/toolkit'
+import { combineReducers, configureStore, createReducer, createSlice } from '@reduxjs/toolkit'
 import { makeMockedStorage, serialize, wait } from './utils'
-import { asLazy, autoMergeLevel1, persistCombineReducersLazy, persistReducer, valueOf } from '..'
+import { asLazy, autoMergeLevel1, isPersistable, persistCombineReducersLazy, persistReducer, valueOf } from '..'
 import { buildKey } from '../buildKey'
 import { withPerist } from '../getDefaultMiddleware'
 
@@ -59,31 +59,64 @@ describe('persistCombineReducersLazy', () => {
     const rootConfig = {
       key: 'root',
       storage,
-    }
+      whitelist: ['c'],
+    } as const
     const aConfig = {
       key: 'a',
       storage,
+    } as const
+    const bConfig = {
+      key: 'b',
+      storage,
+      whitelist: ['c', 'd'],
+    } as const
+    const eConfig = {
+      key: 'e',
+      storage,
     }
-    const persistedReducer = persistCombineReducersLazy(rootConfig, {
-      a: persistReducer(aConfig, a.reducer),
-      b: b.reducer,
-    })
+    const root = persistReducer(
+      rootConfig,
+      combineReducers({
+        a: persistReducer(
+          aConfig,
+          createReducer({ value: 0 }, (builder) => builder)
+        ),
+        b: persistCombineReducersLazy(bConfig, {
+          c: createReducer(asLazy<number>(0), (builder) => builder),
+          d: createReducer(asLazy<boolean>(true), (builder) => builder),
+          e: persistReducer(
+            eConfig,
+            createReducer({ value: 0 }, (builder) => builder)
+          ),
+        }),
+        c: createReducer({ value: 0 }, (builder) => builder),
+      })
+    )
     const store = configureStore({
-      reducer: persistedReducer,
+      reducer: root,
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
 
-    expect(storage.getItem).not.toHaveBeenCalled()
-
     const state = store.getState()
 
-    expect(state.b.value).toBe(0)
+    expect(state.c.value).toBe(0)
     expect(storage.getItem).toHaveBeenCalledTimes(1)
     expect(storage.getItem).toHaveBeenLastCalledWith(buildKey(rootConfig))
 
     expect(state.a.value).toBe(0)
     expect(storage.getItem).toHaveBeenCalledTimes(2)
     expect(storage.getItem).toHaveBeenLastCalledWith(buildKey(aConfig))
+
+    expect(state.b.c).toBe(0)
+    expect(storage.getItem).toHaveBeenCalledTimes(3)
+    expect(storage.getItem).toHaveBeenLastCalledWith(buildKey(bConfig))
+
+    expect(state.b.d).toBe(true)
+    expect(storage.getItem).toHaveBeenCalledTimes(3)
+
+    expect(state.b.e.value).toBe(0)
+    expect(storage.getItem).toHaveBeenCalledTimes(4)
+    expect(storage.getItem).toHaveBeenLastCalledWith(buildKey(eConfig))
   })
 
   it('deep nested reducers', () => {
@@ -364,5 +397,48 @@ describe('persistCombineReducersLazy', () => {
 
     expect(state.string).toBe('str')
     expect(typeof state.string).toBe('string')
+  })
+
+  it('should return plain object after dispatch', () => {
+    const storage = makeMockedStorage()
+    const config = {
+      key: 'root',
+      storage,
+    }
+    storage.setItem(buildKey(config), serialize({ object: { a: 0 }, number: 10 }))
+    const numberSlice = createSlice({
+      name: 'number',
+      initialState: asLazy<number>(0),
+      reducers: {
+        increment: (state) => valueOf(state) + 1,
+      },
+    })
+    const objectSlice = createSlice({
+      name: 'object',
+      initialState: { a: 0 },
+      reducers: {
+        increment: (state) => {
+          state.a += 1
+        },
+      },
+    })
+    const persistedReducer = persistCombineReducersLazy(config, {
+      [numberSlice.name]: numberSlice.reducer,
+      [objectSlice.name]: objectSlice.reducer,
+    })
+    const store = configureStore({
+      reducer: persistedReducer,
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+    })
+
+    expect(isPersistable(store.getState())).toBe(true)
+
+    store.dispatch(objectSlice.actions.increment())
+
+    expect(isPersistable(store.getState())).toBe(false)
+
+    const state = store.getState()
+
+    expect(state.object.a).toBe(1)
   })
 })

@@ -4,7 +4,7 @@ import { autoMergeLevel2 } from './stateReconciler/autoMergeLevel2'
 import type { AnyState, Lazy, PersistConfig } from './types'
 import { register } from './actions'
 import { createHelpers } from './createHelpers'
-import { createLazy, isPersistable } from './createLazy'
+import { createLazy, isPersistable, proxies, valueOf } from './createLazy'
 import { NOT_INITIALIZED } from './constants'
 
 type CanNotBeLazy = string | number | boolean | Date | Array<any> | Map<any, any> | Set<any>
@@ -19,20 +19,15 @@ export type ToState<S extends AnyState> = {
   [K in keyof S]: GetOrigin<S[K]>
 }
 
-// export function lazyPersistCombineReducers<S extends AnyState>(
-//   config: PersistConfig<S>,
-//   reducers: LazyReducersMapObject<S, any>
-// ): Reducer<CombinedState<S>>
+export function persistCombineReducersLazy<S extends AnyState>(
+  config: PersistConfig<S>,
+  reducers: LazyReducersMapObject<S, any>
+): Reducer<ToState<S>>
 
 export function persistCombineReducersLazy<S extends AnyState, A extends Action = AnyAction>(
   config: PersistConfig<S>,
   reducers: LazyReducersMapObject<S, A>
 ): Reducer<ToState<S>, A>
-
-// export function lazyPersistCombineReducers<M extends LazyReducersMapObject<any, any>>(
-//   config: PersistConfig<StateFromReducersMapObject<M>>,
-//   reducers: M
-// ): Reducer<CombinedState<StateFromReducersMapObject<M>>, ActionFromReducersMapObject<M>>
 
 export function persistCombineReducersLazy<S extends AnyState>(
   config: PersistConfig<S>,
@@ -40,15 +35,14 @@ export function persistCombineReducersLazy<S extends AnyState>(
 ): Reducer<ToState<S>> {
   config = { stateReconciler: autoMergeLevel2, ...config }
   type State = ToState<S>
-  const { persistoid, restoreItem, getInitialState } = createHelpers<State>(config)
+  const { persistoid, restoreItem, getInitialState, isRestored } = createHelpers<State>(config)
   const reducer = combineReducers(reducers)
   let innerProxy: S | typeof NOT_INITIALIZED = NOT_INITIALIZED
   let outerProxy: State | typeof NOT_INITIALIZED = NOT_INITIALIZED
   function getOrCreateProxy() {
     if (innerProxy === NOT_INITIALIZED) {
       const initialState = reducer(undefined, getInitialState) as State
-      innerProxy = createCombinedProxy<S>(restoreItem(initialState), config, initialState)
-      outerProxy = createLazy<State>(restoreItem(initialState))
+      innerProxy = createInnerProxy<S>(restoreItem(initialState), config, initialState)
     }
 
     return innerProxy
@@ -66,24 +60,39 @@ export function persistCombineReducersLazy<S extends AnyState>(
       state = getOrCreateProxy()
     }
 
+    if (outerProxy === NOT_INITIALIZED) {
+      outerProxy = createOuterProxy(state)
+    }
+
     // @ts-expect-error
     const nextState = reducer(state, action) as State
 
     if (state !== nextState) {
-      innerProxy = nextState
-      outerProxy = createLazy<State>(() => nextState)
-      persistoid.updateIfChanged(state, nextState)
-    }
-
-    if (outerProxy === NOT_INITIALIZED) {
-      outerProxy = createLazy<State>(() => nextState)
+      if (isRestored()) {
+        innerProxy = toPlainObject(nextState)
+        outerProxy = innerProxy
+      } else {
+        innerProxy = nextState
+        outerProxy = createOuterProxy(innerProxy)
+      }
+      persistoid.updateIfChanged(state, innerProxy)
     }
 
     return outerProxy
   }
 }
 
-export function createCombinedProxy<T extends object>(
+function toPlainObject<T extends AnyState>(innerProxy: T): T {
+  const plain = {} as T
+
+  for (const key in innerProxy) {
+    plain[key] = valueOf(innerProxy[key])
+  }
+
+  return plain
+}
+
+export function createInnerProxy<T extends object>(
   getValue: () => T,
   config: PersistConfig<T>,
   initialState: AnyState
@@ -113,4 +122,16 @@ export function createCombinedProxy<T extends object>(
   }
 
   return combined as T
+}
+
+export function createOuterProxy<T extends AnyState>(innerProxy: T): T {
+  const proxy = new Proxy(innerProxy, {
+    get(target, prop, receiver) {
+      return valueOf(Reflect.get(target, prop, receiver))
+    },
+  })
+
+  proxies.add(proxy)
+
+  return proxy
 }
