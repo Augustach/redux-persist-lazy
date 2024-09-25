@@ -3,7 +3,6 @@ import getStoredState from './getStoredState'
 import { createPersistoid } from './createPersistoid'
 import { ACTION_PREFIX, DEFAULT_VERSION } from './constants'
 import { autoMergeLevel1 } from './stateReconciler/autoMergeLevel1'
-import { rehydrate } from './actions'
 
 const NOT_INITIALIZED = Symbol('NOT_INITIALIZED')
 
@@ -29,7 +28,7 @@ export function createHelpers<S extends AnyState>(config: PersistConfig<S>) {
       const restoredState = getStoredState(config)
       const migratedState = config.migrate ? config.migrate(restoredState, version) : restoredState
       reconciledState = stateReconciler<S>(migratedState, state, state, config)
-      persistoid.dispatch(rehydrate(config.key, reconciledState)) // compatibility with redux-persist
+      persistoid.rehydrate(reconciledState) // compatibility with redux-persist
       isRestored = true
 
       return reconciledState ?? state
