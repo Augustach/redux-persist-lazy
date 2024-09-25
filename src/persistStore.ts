@@ -1,19 +1,26 @@
 import type { Store } from '@reduxjs/toolkit'
-import type { Persistoid, Persistor } from './types'
+import type { OnRehydratePayload, Persistoid, Persistor } from './types'
 import { flush, pause, persist, purge, register } from './actions'
 
 type BoostrappedCb = () => void
 
-interface PersistorOptions {}
+interface PersistorOptions {
+  onRehydrate?: (payload: OnRehydratePayload) => void
+}
 
-export function persistStore(store: Store, _options?: PersistorOptions | null, callback?: BoostrappedCb): Persistor {
+export function persistStore(store: Store, options?: PersistorOptions | null, callback?: BoostrappedCb): Persistor {
   const persistors: Persistor[] = []
   callback?.()
 
   store.dispatch(
     register({
       register: (persistor: Persistoid<unknown>) => {
-        persistor.setStore(store)
+        persistor.setStore({
+          dispatch: store.dispatch,
+          onRehydrate: (config) => {
+            options?.onRehydrate?.(config)
+          },
+        })
         persistors.push(persistor)
       },
     })

@@ -38,11 +38,22 @@ export interface Persistor {
   persist(): void
 }
 
+export type ReduxStore = Pick<Store, 'dispatch'>
+
+export interface OnRehydratePayload {
+  key: string
+}
+
+export interface PersistoidSharedStore extends ReduxStore {
+  onRehydrate(payload: OnRehydratePayload): void
+}
+
 export interface Persistoid<State> extends Persistor {
   update(state: State): void
   updateIfChanged(prev: State, next: State): void
-  setStore(store: Store): void
+  setStore(store: PersistoidSharedStore): void
   dispatch(action: Action): void
+  rehydrate(reconciledState: State): void
 }
 
 export interface KeyAccessState {

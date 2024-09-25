@@ -1,8 +1,9 @@
-import type { Action, Store } from '@reduxjs/toolkit'
+import type { Action } from '@reduxjs/toolkit'
 import { buildKey } from './buildKey'
 import { DEFAULT_DELAY, DEFAULT_VERSION, PERSIST_KEY } from './constants'
-import type { AnyState, PersistConfig, Persistoid } from './types'
+import type { AnyState, PersistConfig, Persistoid, PersistoidSharedStore } from './types'
 import { valueOf } from './createLazy'
+import { rehydrate } from './actions'
 
 export function createPersistoid<State extends AnyState>(config: PersistConfig<State>): Persistoid<State> {
   let timerId: ReturnType<typeof setTimeout> | null = null
@@ -10,7 +11,7 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
   const storageKey = buildKey(config)
   let lastState: State | null = null
   let isPaused = false
-  let store: Store | null = null
+  let store: PersistoidSharedStore | null = null
   const pendingActions: Action[] = []
 
   const setItem = (state: State) => {
@@ -36,7 +37,7 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
     timerId = null
   }
 
-  const asyncDispatch = ({ dispatch }: Store, action: Action) => {
+  const asyncDispatch = ({ dispatch }: PersistoidSharedStore, action: Action) => {
     setTimeout(() => {
       dispatch(action)
     }, 0)
@@ -53,6 +54,14 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
     }, delay)
   }
 
+  const dispatch: Persistoid<State>['dispatch'] = (action) => {
+    if (store) {
+      asyncDispatch(store, action)
+    } else {
+      pendingActions.push(action)
+    }
+  }
+
   return {
     setStore(nextStore) {
       store = nextStore
@@ -61,13 +70,7 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
       }
       pendingActions.length = 0
     },
-    dispatch(action) {
-      if (store) {
-        asyncDispatch(store, action)
-      } else {
-        pendingActions.push(action)
-      }
-    },
+    dispatch,
     update: update,
     updateIfChanged(prev: State, next: State) {
       if (prev === next) {
@@ -102,6 +105,10 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
       cancelPendingSetState()
       isPaused = false
       lastState && setItem(lastState)
+    },
+    rehydrate(reconciledState: State) {
+      dispatch(rehydrate(config.key, reconciledState)) // compatibility with redux-persist
+      store?.onRehydrate({ key: config.key })
     },
   }
 }
