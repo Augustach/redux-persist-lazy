@@ -4,7 +4,8 @@ import { persistReducer } from '../persistReducer'
 import { persistReducer as rpPersistReducer, persistStore as rpPersistStore } from 'redux-persist'
 import { buildKey } from '../buildKey'
 import { persistCombineReducers } from '../persistCombineReducers'
-import { withPerist } from '../getDefaultMiddleware'
+import { withReduxPersist } from '../getDefaultMiddleware'
+import { persistStore } from '../persistStore'
 
 type State = { a?: string; b?: string; c?: string }
 type SetAction = PayloadAction<{ key: 'a' | 'b' | 'c'; value: string }>
@@ -115,8 +116,9 @@ describe('compatibility with redux-persist', () => {
         other: other.reducer,
         holder: holder.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     expect(JSON.stringify(store.getState())).toBe(
       JSON.stringify({
@@ -152,8 +154,10 @@ describe('compatibility with redux-persist', () => {
         other: other.reducer,
         holder: holder.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+
+    persistStore(store)
 
     store.dispatch(slice.actions.set({ key: 'a', value: '1' }))
     store.dispatch(slice.actions.set({ key: 'b', value: '2' }))

@@ -2,10 +2,10 @@ import { combineReducers, type Action, type AnyAction, type Reducer } from '@red
 import { autoMergeLevel2 } from './stateReconciler/autoMergeLevel2'
 
 import type { AnyState, Lazy, PersistConfig } from './types'
-import { register } from './actions'
-import { createHelpers } from './createHelpers'
+import { getInitialState, purge, register } from './actions'
 import { createLazy, isPersistable, proxies, valueOf } from './createLazy'
 import { NOT_INITIALIZED } from './constants'
+import { createPersistoid } from './createPersistoid'
 
 type CanNotBeLazy = string | number | boolean | Date | Array<any> | Map<any, any> | Set<any>
 
@@ -35,24 +35,22 @@ export function persistCombineReducersLazy<S extends AnyState>(
 ): Reducer<ToState<S>> {
   config = { stateReconciler: autoMergeLevel2, ...config }
   type State = ToState<S>
-  const { persistoid, restoreItem, getInitialState, isRestored } = createHelpers<State>(config)
+  const persistoid = createPersistoid(config)
   const reducer = combineReducers(reducers)
   let innerProxy: S | typeof NOT_INITIALIZED = NOT_INITIALIZED
   let outerProxy: State | typeof NOT_INITIALIZED = NOT_INITIALIZED
   function getOrCreateProxy() {
     if (innerProxy === NOT_INITIALIZED) {
       const initialState = reducer(undefined, getInitialState) as State
-      innerProxy = createInnerProxy<S>(restoreItem(initialState), config, initialState)
+      innerProxy = createInnerProxy<S>(persistoid.restore(initialState), config, initialState)
     }
 
     return innerProxy
   }
   return (state, action) => {
-    if (register.match(action)) {
-      action.payload.register(persistoid)
-    }
-
     if (state === undefined) {
+      innerProxy = NOT_INITIALIZED
+      outerProxy = NOT_INITIALIZED
       state = getOrCreateProxy()
     }
 
@@ -68,7 +66,7 @@ export function persistCombineReducersLazy<S extends AnyState>(
     const nextState = reducer(state, action) as State
 
     if (state !== nextState) {
-      if (isRestored()) {
+      if (persistoid.isStateRestored()) {
         innerProxy = toPlainObject(nextState, config)
         outerProxy = innerProxy
       } else {
@@ -78,7 +76,16 @@ export function persistCombineReducersLazy<S extends AnyState>(
       persistoid.updateIfChanged(state, innerProxy)
     }
 
-    return outerProxy
+    const returnedState = outerProxy
+
+    if (register.match(action)) {
+      action.payload.register(persistoid)
+    } else if (purge.match(action)) {
+      innerProxy = NOT_INITIALIZED
+      outerProxy = NOT_INITIALIZED
+    }
+
+    return returnedState
   }
 }
 

@@ -42,6 +42,7 @@ export type ReduxStore = Pick<Store, 'dispatch'>
 
 export interface OnRehydratePayload {
   key: string
+  reconciledState: AnyState
 }
 
 export interface PersistoidSharedStore extends ReduxStore {
@@ -53,7 +54,8 @@ export interface Persistoid<State> extends Persistor {
   updateIfChanged(prev: State, next: State): void
   setStore(store: PersistoidSharedStore): void
   dispatch(action: Action): void
-  rehydrate(reconciledState: State): void
+  restore(state: State): (key?: string | symbol) => State
+  isStateRestored(): boolean
 }
 
 export interface KeyAccessState {
@@ -117,6 +119,11 @@ export type PersistConfig<
    * Delay between persisting state
    */
   delay?: number
+
+  /**
+   * if `true` will dispatch the REHYDRATE action for backward compatibility
+   */
+  shouldDispatchRehydrateAction?: boolean
 }
 
 export type CombinedPersistConfig<S> =

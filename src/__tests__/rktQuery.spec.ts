@@ -97,7 +97,10 @@ describe('rkt query', () => {
     })
     const store = configureStore({
       reducer: {
-        [api.reducerPath]: persistReducer({ storage, key: api.reducerPath, version, delay }, api.reducer),
+        [api.reducerPath]: persistReducer(
+          { storage, key: api.reducerPath, version, delay, shouldDispatchRehydrateAction: true },
+          api.reducer
+        ),
       },
       middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
@@ -166,7 +169,7 @@ describe('rkt query', () => {
       [api.reducerPath]: api.reducer,
     })
     const store = configureStore({
-      reducer: persistReducer({ storage, key: KEY, version, delay }, rootReducer),
+      reducer: persistReducer({ storage, key: KEY, version, delay, shouldDispatchRehydrateAction: true }, rootReducer),
       middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
           serializableCheck: false,

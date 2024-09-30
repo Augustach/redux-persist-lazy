@@ -2,7 +2,8 @@ import { combineReducers, configureStore, createSlice, type PayloadAction } from
 import { persistReducer } from '../persistReducer'
 import { makeMockedStorage, serialize, wait } from './utils'
 import { buildKey } from '../buildKey'
-import { withPerist } from '../getDefaultMiddleware'
+import { withReduxPersist } from '../getDefaultMiddleware'
+import { persistStore } from '../persistStore'
 
 const cached = {
   holder: {
@@ -64,8 +65,9 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     const json = JSON.stringify(store.getState())
     expect(storage.getItem).toHaveBeenCalledTimes(1)
@@ -86,8 +88,9 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     store.dispatch(slice.actions.increment('a'))
     store.dispatch(slice.actions.increment('b'))
@@ -127,8 +130,9 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     store.dispatch(other.actions.increment())
 
@@ -148,8 +152,9 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     type State = ReturnType<(typeof store)['getState']>
     const selector = (key: string) => (state: State) => state.slice.holder[key]?.value
@@ -172,8 +177,9 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     store.getState()
     expect(storage.getItem).not.toHaveBeenCalled()
@@ -193,8 +199,9 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     const state = store.getState()
 
@@ -220,8 +227,9 @@ describe('persistReducer', () => {
         slice: persistReducer(sliceConfig, slice.reducer),
         other: persistReducer(otherConfig, other.reducer),
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     await wait(delay)
     expect(storage.getItem(buildKey(otherConfig))).toBe(null)
@@ -260,8 +268,9 @@ describe('persistReducer', () => {
       reducer: {
         [slice.name]: persistReducer(config, innerSlice.reducer),
       },
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     const value = store.getState()[innerSlice.name]?.value
     expect(value).toBe(undefined)
@@ -291,8 +300,9 @@ describe('persistReducer', () => {
     const reducer = persistReducer(config, simple.reducer)
     const store = configureStore({
       reducer: reducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     expect(store.getState().b === 2).toBe(true)
     expect(storage.getItem).not.toHaveBeenCalled()

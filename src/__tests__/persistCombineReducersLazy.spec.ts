@@ -1,8 +1,9 @@
 import { combineReducers, configureStore, createReducer, createSlice } from '@reduxjs/toolkit'
 import { makeMockedStorage, serialize, wait } from './utils'
 import { asLazy, autoMergeLevel1, isPersistable, persistCombineReducersLazy, persistReducer, valueOf } from '..'
+import { persistStore } from '../persistStore'
 import { buildKey } from '../buildKey'
-import { withPerist } from '../getDefaultMiddleware'
+import { withReduxPersist } from '../getDefaultMiddleware'
 
 const a = createSlice({
   name: 'a',
@@ -41,8 +42,9 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     expect(storage.getItem).not.toHaveBeenCalled()
 
@@ -94,8 +96,9 @@ describe('persistCombineReducersLazy', () => {
     )
     const store = configureStore({
       reducer: root,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     const state = store.getState()
 
@@ -154,8 +157,9 @@ describe('persistCombineReducersLazy', () => {
 
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     expect(JSON.stringify(store.getState())).toBe(
       JSON.stringify({
@@ -189,8 +193,9 @@ describe('persistCombineReducersLazy', () => {
         a: persistReducer(sliceConfig, a.reducer),
         b: b.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     await wait(delay)
     expect(storage.getItem(buildKey(rootConfig))).toBe(null)
@@ -229,8 +234,9 @@ describe('persistCombineReducersLazy', () => {
       reducer: persistCombineReducersLazy(config, {
         [innerSlice.name]: innerSlice.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     const value = store.getState()[innerSlice.name]?.value
     expect(value).toBe(undefined)
@@ -265,8 +271,9 @@ describe('persistCombineReducersLazy', () => {
         b: b.reducer,
         [primitive.name]: primitive.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     const value = store.getState()[primitive.name]
 
@@ -305,8 +312,9 @@ describe('persistCombineReducersLazy', () => {
         b: b.reducer,
         [primitive.name]: primitive.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     store.dispatch(primitive.actions.increment())
 
@@ -338,8 +346,9 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     const state = store.getState()
 
@@ -385,8 +394,9 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     store.dispatch(objectSlice.actions.increment())
 
@@ -444,8 +454,9 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     expect(isPersistable(store.getState())).toBe(true)
 
@@ -461,7 +472,7 @@ describe('persistCombineReducersLazy', () => {
     expect(state[peristedSlice.name].value).toBe(11)
   })
 
-  it.only('should not restore persisted reducer if not in whitelist', () => {
+  it('should not restore persisted reducer if not in whitelist', () => {
     const storage = makeMockedStorage()
     const numberSlice = createSlice({
       name: 'number',
@@ -496,8 +507,9 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
+    persistStore(store)
 
     let state = store.getState()
     expect(state.number).toBe(10)
