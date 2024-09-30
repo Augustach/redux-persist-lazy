@@ -23,7 +23,7 @@ const getIgnoredActions = (config?: boolean | SerializableStateInvariantMiddlewa
 
 const persistedActions = [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER]
 
-export const withPerist = <Config extends GetDefaultMiddlewareOptions>(config: Config): Config => {
+export const withReduxPersist = <Config extends GetDefaultMiddlewareOptions>(config: Config): Config => {
   const isImmutable = typeof config?.immutableCheck === 'function' ? config.immutableCheck : isImmutableDefault
   const getEntries =
     typeof config?.serializableCheck === 'function' ? config.serializableCheck : (value: any) => Object.entries(value)

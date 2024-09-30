@@ -3,7 +3,7 @@ import { makeMockedStorage, serialize, wait } from './utils'
 import { asLazy, autoMergeLevel1, isPersistable, persistCombineReducersLazy, persistReducer, valueOf } from '..'
 import { persistStore } from '../persistStore'
 import { buildKey } from '../buildKey'
-import { withPerist } from '../getDefaultMiddleware'
+import { withReduxPersist } from '../getDefaultMiddleware'
 
 const a = createSlice({
   name: 'a',
@@ -42,7 +42,7 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -96,7 +96,7 @@ describe('persistCombineReducersLazy', () => {
     )
     const store = configureStore({
       reducer: root,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -157,7 +157,7 @@ describe('persistCombineReducersLazy', () => {
 
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -193,7 +193,7 @@ describe('persistCombineReducersLazy', () => {
         a: persistReducer(sliceConfig, a.reducer),
         b: b.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -234,7 +234,7 @@ describe('persistCombineReducersLazy', () => {
       reducer: persistCombineReducersLazy(config, {
         [innerSlice.name]: innerSlice.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -271,7 +271,7 @@ describe('persistCombineReducersLazy', () => {
         b: b.reducer,
         [primitive.name]: primitive.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -312,7 +312,7 @@ describe('persistCombineReducersLazy', () => {
         b: b.reducer,
         [primitive.name]: primitive.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -346,7 +346,7 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -394,7 +394,7 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -454,7 +454,7 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -507,7 +507,7 @@ describe('persistCombineReducersLazy', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 

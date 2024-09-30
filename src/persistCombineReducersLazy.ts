@@ -49,6 +49,8 @@ export function persistCombineReducersLazy<S extends AnyState>(
   }
   return (state, action) => {
     if (state === undefined) {
+      innerProxy = NOT_INITIALIZED
+      outerProxy = NOT_INITIALIZED
       state = getOrCreateProxy()
     }
 

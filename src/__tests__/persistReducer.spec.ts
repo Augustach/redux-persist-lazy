@@ -2,7 +2,7 @@ import { combineReducers, configureStore, createSlice, type PayloadAction } from
 import { persistReducer } from '../persistReducer'
 import { makeMockedStorage, serialize, wait } from './utils'
 import { buildKey } from '../buildKey'
-import { withPerist } from '../getDefaultMiddleware'
+import { withReduxPersist } from '../getDefaultMiddleware'
 import { persistStore } from '../persistStore'
 
 const cached = {
@@ -65,7 +65,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -88,7 +88,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -130,7 +130,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -152,7 +152,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -177,7 +177,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -199,7 +199,7 @@ describe('persistReducer', () => {
         [slice.name]: persistedReducer,
         [other.name]: other.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -227,7 +227,7 @@ describe('persistReducer', () => {
         slice: persistReducer(sliceConfig, slice.reducer),
         other: persistReducer(otherConfig, other.reducer),
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -268,7 +268,7 @@ describe('persistReducer', () => {
       reducer: {
         [slice.name]: persistReducer(config, innerSlice.reducer),
       },
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -300,7 +300,7 @@ describe('persistReducer', () => {
     const reducer = persistReducer(config, simple.reducer)
     const store = configureStore({
       reducer: reducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 

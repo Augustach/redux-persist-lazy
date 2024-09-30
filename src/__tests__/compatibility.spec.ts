@@ -4,7 +4,7 @@ import { persistReducer } from '../persistReducer'
 import { persistReducer as rpPersistReducer, persistStore as rpPersistStore } from 'redux-persist'
 import { buildKey } from '../buildKey'
 import { persistCombineReducers } from '../persistCombineReducers'
-import { withPerist } from '../getDefaultMiddleware'
+import { withReduxPersist } from '../getDefaultMiddleware'
 import { persistStore } from '../persistStore'
 
 type State = { a?: string; b?: string; c?: string }
@@ -116,7 +116,7 @@ describe('compatibility with redux-persist', () => {
         other: other.reducer,
         holder: holder.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
 
@@ -154,7 +154,7 @@ describe('compatibility with redux-persist', () => {
         other: other.reducer,
         holder: holder.reducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
 
     persistStore(store)

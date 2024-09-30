@@ -5,7 +5,7 @@ import { persistReducer } from '../persistReducer'
 import { buildKey } from '../buildKey'
 import { persistCombineReducers } from '../persistCombineReducers'
 import { persistStore } from '../persistStore'
-import { withPerist } from '../getDefaultMiddleware'
+import { withReduxPersist } from '../getDefaultMiddleware'
 
 type State = Record<string, string> & {
   a: string
@@ -52,7 +52,7 @@ describe('whiteBlackList', () => {
       reducer: combineReducers({
         [slice.name]: persistedReducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
     store.dispatch(slice.actions.add({ key: 'a', value: '1' }))
@@ -79,7 +79,7 @@ describe('whiteBlackList', () => {
       reducer: combineReducers({
         [slice.name]: persistedReducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
     store.dispatch(slice.actions.add({ key: 'a', value: '1' }))
@@ -108,7 +108,7 @@ describe('whiteBlackList', () => {
       reducer: combineReducers({
         [slice.name]: persistedReducer,
       }),
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
     store.dispatch(slice.actions.add({ key: 'a', value: '1' }))
@@ -142,7 +142,7 @@ describe('whiteBlackList', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     persistStore(store)
     store.dispatch(slice.actions.add({ key: 'a', value: '1' }))

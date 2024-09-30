@@ -1,7 +1,7 @@
 import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { makeMockedStorage } from './utils'
 import { buildKey } from '../buildKey'
-import { withPerist } from '../getDefaultMiddleware'
+import { withReduxPersist } from '../getDefaultMiddleware'
 import { persistReducer } from '../persistReducer'
 import { persistStore } from '../persistStore'
 import { persistCombineReducersLazy } from '../persistCombineReducersLazy'
@@ -32,7 +32,7 @@ describe('persistStore', () => {
       reducer: {
         [slice.name]: reducer,
       },
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     const persistor = persistStore(store)
     store.dispatch(slice.actions.push(1))
@@ -58,7 +58,7 @@ describe('persistStore', () => {
     })
     const prevStore = configureStore({
       reducer: reducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
     const persistor = persistStore(prevStore)
     prevStore.dispatch(slice.actions.push(1))
@@ -67,7 +67,7 @@ describe('persistStore', () => {
 
     const store = configureStore({
       reducer: reducer,
-      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withReduxPersist({})),
     })
 
     expect(store.getState()).toEqual({
