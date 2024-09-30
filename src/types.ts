@@ -42,6 +42,7 @@ export type ReduxStore = Pick<Store, 'dispatch'>
 
 export interface OnRehydratePayload {
   key: string
+  reconciledState: AnyState
 }
 
 export interface PersistoidSharedStore extends ReduxStore {
@@ -118,6 +119,11 @@ export type PersistConfig<
    * Delay between persisting state
    */
   delay?: number
+
+  /**
+   * if `true` will dispatch the REHYDRATE action for backward compatibility
+   */
+  shouldDispatchRehydrateAction?: boolean
 }
 
 export type CombinedPersistConfig<S> =

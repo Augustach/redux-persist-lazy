@@ -3,9 +3,9 @@ import { buildKey } from './buildKey'
 import { DEFAULT_DELAY, DEFAULT_VERSION, PERSIST_KEY } from './constants'
 import type { AnyState, PersistConfig, Persistoid, PersistoidSharedStore } from './types'
 import { valueOf } from './createLazy'
-import { rehydrate } from './actions'
 import { autoMergeLevel1 } from './stateReconciler/autoMergeLevel1'
 import getStoredState from './getStoredState'
+import { rehydrate } from './actions'
 
 export function createPersistoid<State extends AnyState>(config: PersistConfig<State>): Persistoid<State> {
   let timerId: ReturnType<typeof setTimeout> | null = null
@@ -73,8 +73,8 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
   }
 
   const onRehydrate = (reconciledState: State) => {
-    dispatch(rehydrate(config.key, reconciledState)) // compatibility with redux-persist
-    store?.onRehydrate({ key: config.key })
+    config?.shouldDispatchRehydrateAction && dispatch(rehydrate(config.key, reconciledState)) // compatibility with redux-persist
+    store?.onRehydrate({ key: config.key, reconciledState })
   }
 
   const NOT_INITIALIZED = Symbol('NOT_INITIALIZED')
