@@ -4,6 +4,8 @@ import { makeMockedStorage, serialize, wait } from './utils'
 import { persistReducer } from '../persistReducer'
 import { buildKey } from '../buildKey'
 import { persistCombineReducers } from '../persistCombineReducers'
+import { persistStore } from '../persistStore'
+import { withPerist } from '../getDefaultMiddleware'
 
 type State = Record<string, string> & {
   a: string
@@ -50,7 +52,9 @@ describe('whiteBlackList', () => {
       reducer: combineReducers({
         [slice.name]: persistedReducer,
       }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
     store.dispatch(slice.actions.add({ key: 'a', value: '1' }))
     store.dispatch(slice.actions.add({ key: 'b', value: '2' }))
     store.dispatch(slice.actions.add({ key: 'c', value: '3' }))
@@ -75,7 +79,9 @@ describe('whiteBlackList', () => {
       reducer: combineReducers({
         [slice.name]: persistedReducer,
       }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
     store.dispatch(slice.actions.add({ key: 'a', value: '1' }))
     store.dispatch(slice.actions.add({ key: 'b', value: '2' }))
     store.dispatch(slice.actions.add({ key: 'c', value: '3' }))
@@ -102,7 +108,9 @@ describe('whiteBlackList', () => {
       reducer: combineReducers({
         [slice.name]: persistedReducer,
       }),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
     store.dispatch(slice.actions.add({ key: 'a', value: '1' }))
     store.dispatch(slice.actions.add({ key: 'b', value: '2' }))
     store.dispatch(slice.actions.add({ key: 'c', value: '3' }))
@@ -134,7 +142,9 @@ describe('whiteBlackList', () => {
     })
     const store = configureStore({
       reducer: persistedReducer,
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
     store.dispatch(slice.actions.add({ key: 'a', value: '1' }))
     store.dispatch(slice.actions.add({ key: 'b', value: '2' }))
     store.dispatch(slice.actions.add({ key: 'c', value: '3' }))

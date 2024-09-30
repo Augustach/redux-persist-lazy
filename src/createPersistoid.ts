@@ -4,10 +4,20 @@ import { DEFAULT_DELAY, DEFAULT_VERSION, PERSIST_KEY } from './constants'
 import type { AnyState, PersistConfig, Persistoid, PersistoidSharedStore } from './types'
 import { valueOf } from './createLazy'
 import { rehydrate } from './actions'
+import { autoMergeLevel1 } from './stateReconciler/autoMergeLevel1'
+import getStoredState from './getStoredState'
 
 export function createPersistoid<State extends AnyState>(config: PersistConfig<State>): Persistoid<State> {
   let timerId: ReturnType<typeof setTimeout> | null = null
-  const { delay = DEFAULT_DELAY, storage, blacklist, whitelist, version = DEFAULT_VERSION, transforms = [] } = config
+  const {
+    delay = DEFAULT_DELAY,
+    storage,
+    blacklist,
+    whitelist,
+    version = DEFAULT_VERSION,
+    transforms = [],
+    stateReconciler = autoMergeLevel1,
+  } = config
   const storageKey = buildKey(config)
   let lastState: State | null = null
   let isPaused = false
@@ -62,6 +72,32 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
     }
   }
 
+  const onRehydrate = (reconciledState: State) => {
+    dispatch(rehydrate(config.key, reconciledState)) // compatibility with redux-persist
+    store?.onRehydrate({ key: config.key })
+  }
+
+  const NOT_INITIALIZED = Symbol('NOT_INITIALIZED')
+  let reconciledState: State | typeof NOT_INITIALIZED = NOT_INITIALIZED
+  const restore = (state: State) => {
+    reconciledState = NOT_INITIALIZED
+
+    return (key?: string | symbol): State => {
+      if (reconciledState !== NOT_INITIALIZED) {
+        return reconciledState
+      }
+      if (key && whitelist && !whitelist.includes(key as keyof State)) {
+        return state
+      }
+      const restoredState = getStoredState(config)
+      const migratedState = config.migrate ? config.migrate(restoredState, version) : restoredState
+      reconciledState = stateReconciler<State>(migratedState, state, state, config)
+      onRehydrate(reconciledState)
+
+      return reconciledState ?? state
+    }
+  }
+
   return {
     setStore(nextStore) {
       store = nextStore
@@ -100,15 +136,16 @@ export function createPersistoid<State extends AnyState>(config: PersistConfig<S
     purge() {
       cancelPendingSetState()
       storage.removeItem(storageKey)
+      reconciledState = NOT_INITIALIZED
     },
     persist() {
       cancelPendingSetState()
       isPaused = false
       lastState && setItem(lastState)
     },
-    rehydrate(reconciledState: State) {
-      dispatch(rehydrate(config.key, reconciledState)) // compatibility with redux-persist
-      store?.onRehydrate({ key: config.key })
+    restore,
+    isStateRestored() {
+      return reconciledState !== NOT_INITIALIZED
     },
   }
 }

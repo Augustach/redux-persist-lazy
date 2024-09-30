@@ -3,6 +3,7 @@ import { persistReducer } from '../persistReducer'
 import { makeMockedStorage, serialize, wait } from './utils'
 import { buildKey } from '../buildKey'
 import { withPerist } from '../getDefaultMiddleware'
+import { persistStore } from '../persistStore'
 
 const cached = {
   holder: {
@@ -66,6 +67,7 @@ describe('persistReducer', () => {
       }),
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
 
     const json = JSON.stringify(store.getState())
     expect(storage.getItem).toHaveBeenCalledTimes(1)
@@ -88,6 +90,7 @@ describe('persistReducer', () => {
       }),
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
 
     store.dispatch(slice.actions.increment('a'))
     store.dispatch(slice.actions.increment('b'))
@@ -129,6 +132,7 @@ describe('persistReducer', () => {
       }),
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
 
     store.dispatch(other.actions.increment())
 
@@ -150,6 +154,7 @@ describe('persistReducer', () => {
       }),
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
 
     type State = ReturnType<(typeof store)['getState']>
     const selector = (key: string) => (state: State) => state.slice.holder[key]?.value
@@ -174,6 +179,7 @@ describe('persistReducer', () => {
       }),
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
 
     store.getState()
     expect(storage.getItem).not.toHaveBeenCalled()
@@ -195,6 +201,7 @@ describe('persistReducer', () => {
       }),
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
 
     const state = store.getState()
 
@@ -222,6 +229,7 @@ describe('persistReducer', () => {
       }),
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
 
     await wait(delay)
     expect(storage.getItem(buildKey(otherConfig))).toBe(null)
@@ -262,6 +270,7 @@ describe('persistReducer', () => {
       },
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
 
     const value = store.getState()[innerSlice.name]?.value
     expect(value).toBe(undefined)
@@ -293,6 +302,7 @@ describe('persistReducer', () => {
       reducer: reducer,
       middleware: (getDefaultMiddleware) => getDefaultMiddleware(withPerist({})),
     })
+    persistStore(store)
 
     expect(store.getState().b === 2).toBe(true)
     expect(storage.getItem).not.toHaveBeenCalled()

@@ -1,9 +1,9 @@
 import type { Action, Reducer } from '@reduxjs/toolkit'
 import { createLazy } from './createLazy'
 import type { AnyState, PersistConfig } from './types'
-import { register } from './actions'
-import { createHelpers } from './createHelpers'
+import { getInitialState, purge, register } from './actions'
 import { NOT_INITIALIZED } from './constants'
+import { createPersistoid } from './createPersistoid'
 
 type StateFromReducer<R> = R extends Reducer<infer S> ? S : never
 
@@ -13,13 +13,13 @@ export function persistReducer<S extends AnyState, A extends Action = Action>(
   config: PersistConfig<S>,
   reducer: Reducer<S, A>
 ): Reducer<S, A> {
-  const { persistoid, restoreItem, getInitialState } = createHelpers<S>(config)
+  const persistoid = createPersistoid(config)
 
   let proxy: S | typeof NOT_INITIALIZED = NOT_INITIALIZED
   function getOrCreateProxy() {
     if (proxy === NOT_INITIALIZED) {
       const initialState = reducer(undefined, getInitialState)
-      proxy = createLazy<S>(restoreItem(initialState))
+      proxy = createLazy<S>(persistoid.restore(initialState))
     }
 
     return proxy
@@ -27,6 +27,8 @@ export function persistReducer<S extends AnyState, A extends Action = Action>(
   return (state, action) => {
     if (register.match(action)) {
       action.payload.register(persistoid)
+    } else if (purge.match(action)) {
+      proxy = NOT_INITIALIZED
     }
 
     if (state === undefined) {

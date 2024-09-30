@@ -53,7 +53,8 @@ export interface Persistoid<State> extends Persistor {
   updateIfChanged(prev: State, next: State): void
   setStore(store: PersistoidSharedStore): void
   dispatch(action: Action): void
-  rehydrate(reconciledState: State): void
+  restore(state: State): (key?: string | symbol) => State
+  isStateRestored(): boolean
 }
 
 export interface KeyAccessState {
